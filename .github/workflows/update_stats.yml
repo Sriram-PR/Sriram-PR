@@ -44,7 +44,7 @@ jobs:
       
       - name: Commit and push if changed
         run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions-bot@sriram-pr.github.io"
+          git config --global user.name "Sriram-PR/GitHub-Actions-Bot"
           git add -A
           git diff --staged --quiet || (git commit -m "Update GitHub stats - $(date +'%Y-%m-%d')" && git push)
