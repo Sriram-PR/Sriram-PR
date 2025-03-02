@@ -1,11 +1,10 @@
-#update_stats.yml
 name: Update GitHub Stats
 on:
   push:
     branches:
       - main
   schedule:
-    - cron: "0 4 * * *"  # Run daily at 4:00 AM UTC
+    - cron: "30 18 * * *"  # Run daily at 6:30 PM UTC
   workflow_dispatch:     # Allow manual triggering
 
 # Prevent multiple workflow runs executing at the same time
@@ -17,7 +16,7 @@ jobs:
   update-stats:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Needed for pushing changes
+      contents: write
     
     steps:
       - name: Checkout repository
@@ -34,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests lxml python-dateutil
+          pip install -r cache/requirements.txt
       
       - name: Update GitHub stats
         env:
