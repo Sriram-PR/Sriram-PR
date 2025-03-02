@@ -22,7 +22,7 @@ if 'USER_NAME' not in os.environ or not os.environ['USER_NAME']:
 # Configuration constants
 USER_NAME = os.environ['USER_NAME']
 HEADERS = {'authorization': 'token ' + os.environ['ACCESS_TOKEN']}
-BIRTH_DATE = datetime.datetime(2005, 2, 14)  # Customize with your birthdate
+BIRTH_DATE = datetime.datetime(2005, 14, 2)  # Customize with your birthdate
 ENABLE_ARCHIVE = os.environ.get('ENABLE_ARCHIVE', 'false').lower() == 'true'
 QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0, 
                'recursive_loc': 0, 'graph_commits': 0, 'loc_query': 0}
