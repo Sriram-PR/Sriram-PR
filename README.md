@@ -1,14 +1,6 @@
-- 👋 Hi, I’m @Sriram-PR
-- 👀 I’m interested in ...
-- 🌱 I’m currently learning ...
-- 💞️ I’m looking to collaborate on ...
-- 📫 How to reach me ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
-
-<!---
-Sriram-PR/Sriram-PR is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-You can click the Preview link to take a look at your changes.
---->
-
-`Hello`
+<a href="https://github.com/Sriram-PR/Sriram-PR">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Sriram-PR/Sriram-PR/refs/heads/main/dark_mode.svg">
+    <img alt="Sriram PR's GitHub Profile README" src="https://raw.githubusercontent.com/Sriram-PR/Sriram-PR/refs/heads/main/light_mode.svg">
+  </picture>
+</a>
