@@ -33,33 +33,31 @@ text, tspan {white-space: pre;}
 </style>
 <rect width="985px" height="530px" fill="#161b22" rx="15"/>
 <text x="15" y="30" fill="#c9d1d9" class="ascii">
-<tspan x="15" y="30">            ; +++xxX            </tspan>
-<tspan x="15" y="50">         +xXXXXX$X$&$xX         </tspan>
-<tspan x="15" y="70">        X$&&&&&&&$$$$$&$$x      </tspan>
-<tspan x="15" y="90">      +x$&&&&&&&&&&&$&&X$$x     </tspan>
-<tspan x="15" y="110">      +$&&&&&&&&&&&&&&$&&$X     </tspan>
-<tspan x="15" y="130">     +x&&$$xxxxxxx++xx$&&&$     </tspan>
-<tspan x="15" y="150">   xX$&XXxxxxxx+;;;;;;;+x$$X    </tspan>
-<tspan x="15" y="170">   $&$XXXXxxxxx+;;;;;;;+xxX$$   </tspan>
-<tspan x="15" y="190">  X&&XXXXxxxx++;;;;;;;;;xxx$&   </tspan>
-<tspan x="15" y="210">  &&$xXXXXXxxxx+++++++xxxxx$&&  </tspan>
-<tspan x="15" y="230">  &&$$$$&&&&&$$XXX$$&&&&$XX$&&  </tspan>
-<tspan x="15" y="250">   &$X$$&&&&&&&$X$&&&&&X$$X$&   </tspan>
-<tspan x="15" y="270">   &$$$$$&&$&&&x;x$$$$&$x$XX$   </tspan>
-<tspan x="15" y="290"> &&$$XX$$$$$$$Xx;+xx+x$$Xx+xXxx </tspan>
-<tspan x="15" y="310"> &&&xxXxXxxxXXx+;;+x;;;+;++x$&& </tspan>
-<tspan x="15" y="330">  $&$XXXxxxx$Xxx;++x+;;;;+xx$X$ </tspan>
-<tspan x="15" y="350">   $$$$XxxxxX$$$$$Xx;;;+xxxXX   </tspan>
-<tspan x="15" y="370">    $$$$XxX$&&&&$$$+;;+xxxxx    </tspan>
-<tspan x="15" y="390">     $$$$$&&&&$xxxxx$Xxxxxxx    </tspan>
-<tspan x="15" y="410">     $$$$&&&$$$$$$$$$$$xxXX     </tspan>
-<tspan x="15" y="430">       $$$$$X++x;;+xxXXxXX      </tspan>
-<tspan x="15" y="450">       $$$$$$$$$$$$$$XxxX       </tspan>
-<tspan x="15" y="470">       $$$$$&$&&&$xxxxXXx:      </tspan>
-<tspan x="15" y="490">    xxX$$$&$$$&$$$$XX$xxX+;:    </tspan>
-<tspan x="15" y="510">   xxX&&$$&&&&&&&&&&XxxxxX;;:   </tspan>
-<tspan x="15" y="530">  ++xX&&&$$&&&&&&&$xxxxxx$;;;;  </tspan>
-<tspan x="15" y="550">++;++x&&&&&$&&&&&$Xxxxxxx$;;;;;;</tspan>
+<tspan x="15" y="30">         =******%*#%#+*                   </tspan>
+<tspan x="15" y="50">        *%%%%%@@%%%%##%%#*           </tspan>
+<tspan x="15" y="70">      =+%%%@@@@@@@@@%%%*%#*           </tspan>
+<tspan x="15" y="90">      =#@@@@@@@@@%%@%%#%%%*        </tspan>
+<tspan x="15" y="110">    =+%%%#***++=====*#%@%%      </tspan>
+<tspan x="15" y="130">  **%%****++===-:::::-==%%*        </tspan>
+<tspan x="15" y="150">  #%%*****++===--::::-==+*%%        </tspan>
+<tspan x="15" y="170"> *%%*****+====-----::--=+*%%         </tspan>
+<tspan x="15" y="190"> %%%*******+=============*%%%         </tspan>
+<tspan x="15" y="210"> %@%#%%%%%%%%#***#%%@%%#**%@%   </tspan>
+<tspan x="15" y="230">  @%*%%%%@@%%%%*#%@@@%*##*#%    </tspan>
+<tspan x="15" y="250">  %%#%%#%%%%%%*-=###%@%*#**%           </tspan>
+<tspan x="15" y="270">%%%#**#%%%###*+-=====#%*===*=*       </tspan>
+<tspan x="15" y="290">%%%***********=:-==---=-===%%%         </tspan>
+<tspan x="15" y="310"> %%#****++*#**=:====-:--=++#*#         </tspan>
+<tspan x="15" y="330">  %%##**++**%%%##*=---==+***    </tspan>
+<tspan x="15" y="350">   ####***#%@%%%%#=--===***               </tspan>
+<tspan x="15" y="370">    #####%%%%#+**+*#*+++***        </tspan>
+<tspan x="15" y="390">    #%##%%%%%%%####%%%****             </tspan>
+<tspan x="15" y="410">      %####*===--=++*****             </tspan>
+<tspan x="15" y="430">      %%####%%%%####****             </tspan>
+<tspan x="15" y="450">      #%%%%%%%@%%******+:            </tspan>
+<tspan x="15" y="470">   =+*%%%%%%%%%%%#**#***=::          </tspan>
+<tspan x="15" y="490">  ==*%%%%%%%%%%%%%%**+***-::      </tspan>
+<tspan x="15" y="510"> ==+*@@%%%%%%%%%%%**+***#-:::  </tspan>
 </text>
 <text x="390" y="30" fill="#c9d1d9">
 <tspan x="390" y="30">andrew@grant</tspan> -———————————————————————————————————————————-—-
@@ -83,7 +81,7 @@ text, tspan {white-space: pre;}
 <tspan x="390" y="410" class="cc">. </tspan><tspan class="key">Discord</tspan>:<tspan class="cc"> ..................................... </tspan><tspan class="value">andrew6rant</tspan>
 <tspan x="390" y="450">- GitHub Stats</tspan> -—————————————————————————————————————————-—-
 <tspan x="390" y="470" class="cc">. </tspan><tspan class="key">Repos</tspan>:<tspan class="cc" id="repo_data_dots"> ..... </tspan><tspan class="value" id="repo_data">7</tspan> {<tspan class="key">Contributed</tspan>: <tspan class="value" id="contrib_data">7</tspan>} | <tspan class="key">Stars</tspan>:<tspan class="cc" id="star_data_dots"> ............. </tspan><tspan class="value" id="star_data">3</tspan>
-<tspan x="390" y="490" class="cc">. </tspan><tspan class="key">Commmits</tspan>:<tspan class="cc" id="commit_data_dots"> .................... </tspan><tspan class="value" id="commit_data">87</tspan> | <tspan class="key">Followers</tspan>:<tspan class="cc" id="follower_data_dots"> ......... </tspan><tspan class="value" id="follower_data">2</tspan>
-<tspan x="390" y="510" class="cc">. </tspan><tspan class="key">Lines of Code on GitHub</tspan>:<tspan class="cc" id="loc_data_dots"> .... </tspan><tspan class="value" id="loc_data">6,417</tspan> ( <tspan class="addColor" id="loc_add">6,649</tspan><tspan class="addColor">++</tspan>, <tspan class="cc" id="loc_del_dots"> .... </tspan><tspan class="delColor" id="loc_del">232</tspan><tspan class="delColor">--</tspan> )
+<tspan x="390" y="490" class="cc">. </tspan><tspan class="key">Commmits</tspan>:<tspan class="cc" id="commit_data_dots"> .................... </tspan><tspan class="value" id="commit_data">83</tspan> | <tspan class="key">Followers</tspan>:<tspan class="cc" id="follower_data_dots"> ......... </tspan><tspan class="value" id="follower_data">2</tspan>
+<tspan x="390" y="510" class="cc">. </tspan><tspan class="key">Lines of Code on GitHub</tspan>:<tspan class="cc" id="loc_data_dots"> .... </tspan><tspan class="value" id="loc_data">6,415</tspan> ( <tspan class="addColor" id="loc_add">6,587</tspan><tspan class="addColor">++</tspan>, <tspan class="cc" id="loc_del_dots"> .... </tspan><tspan class="delColor" id="loc_del">172</tspan><tspan class="delColor">--</tspan> )
 </text>
 </svg>
