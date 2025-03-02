@@ -1,3 +1,4 @@
+#update_stats.yml
 name: Update GitHub Stats
 on:
   push:
@@ -39,7 +40,7 @@ jobs:
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           USER_NAME: ${{ secrets.USER_NAME }}
-          ENABLE_ARCHIVE: "true"  # Add this line to enable archive support
+          ENABLE_ARCHIVE: "true"
         run: python update_stats.py
       
       - name: Commit and push if changed
