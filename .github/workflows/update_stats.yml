@@ -1,0 +1,50 @@
+name: Update GitHub Stats
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "0 4 * * *"  # Run daily at 4:00 AM UTC
+  workflow_dispatch:     # Allow manual triggering
+
+# Prevent multiple workflow runs executing at the same time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  update-stats:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Needed for pushing changes
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests lxml python-dateutil
+      
+          - name: Update GitHub stats
+          env:
+            ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+            USER_NAME: ${{ secrets.USER_NAME }}
+            ENABLE_ARCHIVE: "true"  # Add this line to enable archive support
+          run: python update_stats.py
+      
+      - name: Commit and push if changed
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet || (git commit -m "Update GitHub stats - $(date +'%Y-%m-%d')" && git push)
