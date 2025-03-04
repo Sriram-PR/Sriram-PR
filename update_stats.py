@@ -1,4 +1,3 @@
-#update_stats.py
 import datetime
 import os
 import sys
@@ -14,7 +13,9 @@ except ImportError as e:
     print("Please install required packages: pip install requests lxml python-dateutil")
     sys.exit(1)
 
-# Configuration and validation
+# Fine-grained personal access token with All Repositories access:
+# Account permissions: read:Followers, read:Starring, read:Watching
+# Repository permissions: read:Commit statuses, read:Contents, read:Issues, read:Metadata, read:Pull Requests
 if 'ACCESS_TOKEN' not in os.environ or not os.environ['ACCESS_TOKEN']:
     raise ValueError("GitHub ACCESS_TOKEN environment variable must be set")
 if 'USER_NAME' not in os.environ or not os.environ['USER_NAME']:
@@ -27,7 +28,7 @@ BIRTH_DATE = datetime.datetime(2005, 2, 14)
 ENABLE_ARCHIVE = os.environ.get('ENABLE_ARCHIVE', 'true').lower() == 'true'
 QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0, 
                'recursive_loc': 0, 'graph_commits': 0, 'loc_query': 0}
-OWNER_ID = None  # Will be set during execution
+OWNER_ID = None
 
 
 def daily_readme(birthday):
