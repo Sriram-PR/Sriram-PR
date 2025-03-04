@@ -163,10 +163,19 @@ def graph_repos_stars(count_type, owner_affiliation, cursor=None):
     request = simple_request('graph_repos_stars', query, variables)
     
     if count_type == 'repos':
+        # Directly use totalCount from GitHub API for repository count
         return request.json()['data']['user']['repositories']['totalCount']
     elif count_type == 'stars':
-        return stars_counter(request.json()['data']['user']['repositories']['edges'])
-
+        # For stars, we still need to count manually across all repositories
+        result = stars_counter(request.json()['data']['user']['repositories']['edges'])
+        
+        # Check if there are more pages of repositories to fetch for star counting
+        if request.json()['data']['user']['repositories']['pageInfo']['hasNextPage']:
+            next_cursor = request.json()['data']['user']['repositories']['pageInfo']['endCursor']
+            # Recursively call to get stars from next page and add to current result
+            result += graph_repos_stars('stars', owner_affiliation, next_cursor)
+            
+        return result
 
 def stars_counter(data):
     """
@@ -755,7 +764,7 @@ def main():
             archived_data = add_archive()
             for index in range(len(total_loc)-1):
                 total_loc[index] += archived_data[index]
-            contrib_data += archived_data[-1]
+            contrib_data += archived_data[-1]  # Add archived repos to contributed repos count
             commit_data += int(archived_data[-2])
         except Exception as e:
             print(f"Error adding archive data: {e}")
@@ -782,3 +791,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
