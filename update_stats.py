@@ -177,6 +177,7 @@ def graph_repos_stars(count_type, owner_affiliation, cursor=None):
             
         return result
 
+
 def stars_counter(data):
     """
     Count total stars in repositories
@@ -791,5 +792,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
