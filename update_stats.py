@@ -684,7 +684,7 @@ def svg_overwrite(filename, age_data, commit_data, star_data, repo_data, contrib
         justify_format(root, 'follower_data', follower_data, 10)
         justify_format(root, 'loc_data', loc_data[2], 12)
         justify_format(root, 'loc_add', loc_data[0])
-        justify_format(root, 'loc_del', loc_data[1], 7)
+        justify_format(root, 'loc_del', loc_data[1], 9)
         
         tree.write(filename, encoding='utf-8', xml_declaration=True)
     except Exception as e:
