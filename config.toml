@@ -10,13 +10,15 @@ Kernel = "Computer Science Junior (AI & ML Focus)"
 IDE = "VSCode 1.102.0"
 
 [languages]
-Programming = "Python, Go, JJava, JavaScript"
+Programming = "Python, Go, Java, JavaScript"
 Computer = "SQL, JSON, LaTeX"
 Real = "English, Tamil"
 
 [hobbies]
 Software = "Web Dev, Neural Architecture Hacking"
-Hardware = "Arduino Programming, Circuit Design"
+
+[interests]
+LookingFor = "Internships, Open Source Collabs"
 
 [contact]
 Portfolio = "srirampr.vercel.app"

@@ -775,6 +775,11 @@ def build_data_tspans(config, api_data):
     for key, value in config['hobbies'].items():
         compound_kv_line('Hobbies', key, value)
 
+    # Interests (compound)
+    if 'interests' in config:
+        for key, value in config['interests'].items():
+            compound_kv_line('Interests', key, value)
+
     # Contact section
     section_break()
     header_line('- Contact')
