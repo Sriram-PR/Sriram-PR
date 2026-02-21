@@ -841,9 +841,9 @@ def build_data_tspans(config, api_data):
     loc_del = api_data['loc_del']
 
     prefix = ts(text='. ', cls='cc', x=X, y_val=y[0])
-    loc_key = ts(text='Lines of Code on GitHub', cls='key'); loc_key.tail = ':'
-    # Fixed: '. '(2) + key(23) + ':'(1) + ' '(1) + dots + ' '(1) + loc_net + ' ( '(3) + loc_add + '++'(2) + ', '(2) + loc_del + '--'(2) + ' )'(2) = 39 + dots_n + values
-    loc_dots_n = max(1, target - 39 - len(loc_net) - len(loc_add) - len(loc_del))
+    loc_key = ts(text='GitHub LOC', cls='key'); loc_key.tail = ':'
+    # Fixed: '. '(2) + key(10) + ':'(1) + ' '(1) + dots + ' '(1) + loc_net + ' ( '(3) + loc_add + '++'(2) + ', '(2) + loc_del + '--'(2) + ' )'(2) = 26 + dots_n + values
+    loc_dots_n = max(1, target - 26 - len(loc_net) - len(loc_add) - len(loc_del))
     loc_dots = ts(text=' ' + '.' * loc_dots_n + ' ', cls='cc')
     loc_val = ts(text=loc_net, cls='value'); loc_val.tail = ' ( '
     add_val = ts(text=loc_add, cls='addColor')
