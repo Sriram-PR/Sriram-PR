@@ -801,8 +801,11 @@ def build_data_tspans(config, api_data):
     #   Repos:   '. '(2) + 'Repos'(5) + ':'(1) + dots + repo + ' {'(2) + 'Contrib'(7) + ': '(2) + contrib + '}'(1) = 20 + (n+2) + repo + contrib
     #   Commits: '. '(2) + 'Commits'(7) + ':'(1) + dots + commit = 10 + (n+2) + commit
     # Both left halves must equal pipe_pos.  dots string = ' ' + '.'*n + ' ' (len = n+2).
-    pipe_pos = max(23 + len(repo_val) + len(contrib_val),
-                   13 + len(commit_val))
+    pipe_pos = target // 2
+    pipe_pos = max(pipe_pos, 23 + len(repo_val) + len(contrib_val))
+    pipe_pos = max(pipe_pos, 13 + len(commit_val))
+    pipe_pos = min(pipe_pos, target - 12 - len(star_val))
+    pipe_pos = min(pipe_pos, target - 16 - len(follower_val))
 
     def make_dots(n):
         n = max(1, n)
