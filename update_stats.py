@@ -798,17 +798,17 @@ def build_data_tspans(config, api_data):
     follower_val = fmt(api_data['followers'])
 
     # Left-half fixed chars (excluding dots string):
-    #   Repos:   '. '(2) + 'Repos'(5) + ':'(1) + dots + repo + ' {'(2) + 'Contributed'(11) + ': '(2) + contrib + '}'(1) = 24 + (n+2) + repo + contrib
+    #   Repos:   '. '(2) + 'Repos'(5) + ':'(1) + dots + repo + ' {'(2) + 'Contrib'(7) + ': '(2) + contrib + '}'(1) = 20 + (n+2) + repo + contrib
     #   Commits: '. '(2) + 'Commits'(7) + ':'(1) + dots + commit = 10 + (n+2) + commit
     # Both left halves must equal pipe_pos.  dots string = ' ' + '.'*n + ' ' (len = n+2).
-    pipe_pos = max(27 + len(repo_val) + len(contrib_val),
+    pipe_pos = max(23 + len(repo_val) + len(contrib_val),
                    13 + len(commit_val))
 
     def make_dots(n):
         n = max(1, n)
         return ' ' + '.' * n + ' '
 
-    repo_dots_n = pipe_pos - 26 - len(repo_val) - len(contrib_val)
+    repo_dots_n = pipe_pos - 22 - len(repo_val) - len(contrib_val)
     commit_dots_n = pipe_pos - 12 - len(commit_val)
     # Right half: target - pipe_pos - 3(' | ')
     star_dots_n = target - pipe_pos - 11 - len(star_val)
@@ -819,7 +819,7 @@ def build_data_tspans(config, api_data):
     repos_key = ts(text='Repos', cls='key'); repos_key.tail = ':'
     repos_dots = ts(text=make_dots(repo_dots_n), cls='cc')
     repos_val = ts(text=repo_val, cls='value'); repos_val.tail = ' {'
-    contrib_key = ts(text='Contributed', cls='key'); contrib_key.tail = ': '
+    contrib_key = ts(text='Contrib', cls='key'); contrib_key.tail = ': '
     contrib_v = ts(text=contrib_val, cls='value'); contrib_v.tail = '} | '
     stars_key = ts(text='Stars', cls='key'); stars_key.tail = ':'
     stars_dots = ts(text=make_dots(star_dots_n), cls='cc')

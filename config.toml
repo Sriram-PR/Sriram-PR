@@ -18,7 +18,7 @@ Real = "English, Tamil"
 Software = "Web Dev, AI/ML"
 
 [interests]
-LookingFor = "Internships, Open Source Collabs"
+OpenTo = "Internships, OSS"
 
 [contact]
 Portfolio = "srirampr.vercel.app"
