@@ -1,0 +1,29 @@
+[profile]
+username = "sriram"
+hostname = "pr"
+birthday = 2005-02-14
+
+[info]
+OS = "Fedora 43, Android 16"
+Host = "Vellore Institute of Technology, Chennai"
+Kernel = "Computer Science Junior (AI & ML Focus)"
+IDE = "VSCode 1.102.0"
+
+[languages]
+Programming = "Python, Go, JJava, JavaScript"
+Computer = "SQL, JSON, LaTeX"
+Real = "English, Tamil"
+
+[hobbies]
+Software = "Web Dev, Neural Architecture Hacking"
+Hardware = "Arduino Programming, Circuit Design"
+
+[contact]
+Portfolio = "srirampr.vercel.app"
+GitHub = "Sriram-PR"
+Discord = "wade_9029"
+Reddit = "u/Ranger_Null"
+LinkedIn = "sriram-periannan"
+
+[layout]
+target_width = 60

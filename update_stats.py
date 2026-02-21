@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import hashlib
+import tomllib
 import requests
 
 try:
@@ -24,7 +25,6 @@ if 'USER_NAME' not in os.environ or not os.environ['USER_NAME']:
 # Configuration constants
 USER_NAME = os.environ['USER_NAME']
 HEADERS = {'authorization': 'token ' + os.environ['ACCESS_TOKEN']}
-BIRTH_DATE = datetime.datetime(2005, 2, 14)
 ENABLE_ARCHIVE = os.environ.get('ENABLE_ARCHIVE', 'true').lower() == 'true'
 QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0, 
                'recursive_loc': 0, 'graph_commits': 0, 'loc_query': 0}
@@ -658,106 +658,233 @@ def formatter(query_type, difference, funct_return=False, whitespace=0):
     return funct_return
 
 
-def svg_overwrite(filename, age_data, commit_data, star_data, repo_data, contrib_data, follower_data, loc_data):
-    """
-    Update SVG file with new statistics
-    
-    Args:
-        filename: SVG file path
-        age_data: User age data
-        commit_data: Commit count
-        star_data: Star count
-        repo_data: Repository count
-        contrib_data: Contribution count
-        follower_data: Follower count
-        loc_data: Lines of code data
-    """
-    try:
-        tree = etree.parse(filename)
-        root = tree.getroot()
-        
-        find_and_replace(root, 'age_data', age_data)
-        justify_format(root, 'commit_data', commit_data, 22)
-        justify_format(root, 'star_data', star_data, 14)
-        justify_format(root, 'repo_data', repo_data, 7)
-        justify_format(root, 'contrib_data', contrib_data)
-        justify_format(root, 'follower_data', follower_data, 10)
-        justify_format(root, 'loc_data', loc_data[2], 9, exact_dots=4)
-        justify_format(root, 'loc_add', loc_data[0])
-        justify_format(root, 'loc_del', loc_data[1], 7)
-        
-        tree.write(filename, encoding='utf-8', xml_declaration=True)
-    except Exception as e:
-        print(f"Error updating SVG {filename}: {e}")
+def load_config(path='config.toml'):
+    """Read and validate config.toml, convert birthday date to datetime."""
+    with open(path, 'rb') as f:
+        config = tomllib.load(f)
+    bd = config['profile']['birthday']
+    config['profile']['birthday'] = datetime.datetime(bd.year, bd.month, bd.day)
+    return config
 
 
-def justify_format(root, element_id, new_text, length=0, exact_dots=None):
-    """
-    Format SVG text elements with proper justification
-    
-    Args:
-        root: SVG root element
-        element_id: Target element ID
-        new_text: New text content
-        length: Justification length
-        exact_dots: If provided, uses exactly this many dots regardless of length
-    """
-    if isinstance(new_text, int):
-        new_text = f"{'{:,}'.format(new_text)}"
-    new_text = str(new_text)
-    
-    find_and_replace(root, element_id, new_text)
-    
-    # If exact_dots is specified, use that exact number of dots
-    if exact_dots is not None:
-        dot_string = ' ' + ('.' * exact_dots) + ' '
-    else:
-        just_len = max(0, length - len(new_text))
-        if just_len <= 2:
-            dot_map = {0: '', 1: ' ', 2: '. '}
-            dot_string = dot_map[just_len]
-        else:
-            dot_string = ' ' + ('.' * just_len) + ' '
-        
-    find_and_replace(root, f"{element_id}_dots", dot_string)
+def compute_dots(key_len, value_len, target_width):
+    """Compute dot-fill string for a key-value line.
+    N = target_width - 5 - key_len - value_len, minimum 1 dot.
+    The 5 accounts for: '. ' prefix (2) + ':' (1) + space before dots (1) + space after dots (1)."""
+    n = max(1, target_width - 5 - key_len - value_len)
+    return ' ' + '.' * n + ' '
 
 
-def find_and_replace(root, element_id, new_text):
-    """
-    Find and update SVG element text
-    
-    Args:
-        root: SVG root element
-        element_id: Target element ID
-        new_text: New text content
-    """
-    element = root.find(f".//*[@id='{element_id}']")
-    if element is not None:
-        element.text = new_text
+def build_data_tspans(config, api_data):
+    """Build the complete list of tspan elements for the SVG data block."""
+    SVG_NS = "http://www.w3.org/2000/svg"
+    target = config['layout']['target_width']
+    X = "390"
+    y = [30]  # mutable for nested functions
+    STEP = 20
+
+    def ts(text=None, cls=None, x=None, y_val=None):
+        el = etree.Element(f"{{{SVG_NS}}}tspan")
+        if x is not None:
+            el.set('x', str(x))
+        if y_val is not None:
+            el.set('y', str(y_val))
+        if cls is not None:
+            el.set('class', cls)
+        if text is not None:
+            el.text = text
+        return el
+
+    def advance():
+        y[0] += STEP
+
+    def stat_dots(val_str, slot):
+        just = max(0, slot - len(val_str))
+        if just <= 2:
+            return {0: '', 1: ' ', 2: '. '}.get(just, '')
+        return ' ' + '.' * just + ' '
+
+    def fmt(n):
+        return f"{n:,}" if isinstance(n, int) else str(n)
+
+    tspans = []
+
+    # --- line builders ---
+
+    def header_line(title):
+        em = target - len(title) - 5
+        el = ts(text=title, x=X, y_val=y[0])
+        el.tail = f" -{'—' * em}-—-\n"
+        tspans.append(el)
+        advance()
+
+    def blank_line():
+        el = ts(text='. ', cls='cc', x=X, y_val=y[0])
+        el.tail = '\n'
+        tspans.append(el)
+        advance()
+
+    def kv_line(key, value):
+        d = compute_dots(len(key), len(value), target)
+        prefix = ts(text='. ', cls='cc', x=X, y_val=y[0])
+        k = ts(text=key, cls='key'); k.tail = ':'
+        dots_el = ts(text=d, cls='cc')
+        v = ts(text=value, cls='value'); v.tail = '\n'
+        tspans.extend([prefix, k, dots_el, v])
+        advance()
+
+    def compound_kv_line(section, key, value):
+        full_key_len = len(section) + 1 + len(key)
+        d = compute_dots(full_key_len, len(value), target)
+        prefix = ts(text='. ', cls='cc', x=X, y_val=y[0])
+        sec = ts(text=section, cls='key'); sec.tail = '.'
+        k = ts(text=key, cls='key'); k.tail = ':'
+        dots_el = ts(text=d, cls='cc')
+        v = ts(text=value, cls='value'); v.tail = '\n'
+        tspans.extend([prefix, sec, k, dots_el, v])
+        advance()
+
+    def section_break():
+        advance()
+
+    # --- build the block ---
+
+    # Header
+    username = config['profile']['username']
+    hostname = config['profile']['hostname']
+    header_line(f"{username}@{hostname}")
+
+    # Info section
+    info_items = list(config['info'].items())
+    for i, (key, value) in enumerate(info_items):
+        kv_line(key, value)
+        if i == 0:  # Insert Uptime after first info field (OS)
+            kv_line('Uptime', api_data['age'])
+
+    # Blank separator
+    blank_line()
+
+    # Languages (compound)
+    for key, value in config['languages'].items():
+        compound_kv_line('Languages', key, value)
+
+    # Blank separator
+    blank_line()
+
+    # Hobbies (compound)
+    for key, value in config['hobbies'].items():
+        compound_kv_line('Hobbies', key, value)
+
+    # Contact section
+    section_break()
+    header_line('- Contact')
+    for key, value in config['contact'].items():
+        kv_line(key, value)
+
+    # GitHub Stats section
+    section_break()
+    header_line('- GitHub Stats')
+
+    # Repos & Stars line
+    repo_val = fmt(api_data['repos'])
+    contrib_val = fmt(api_data['contribs'])
+    star_val = fmt(api_data['stars'])
+
+    prefix = ts(text='. ', cls='cc', x=X, y_val=y[0])
+    repos_key = ts(text='Repos', cls='key'); repos_key.tail = ':'
+    repos_dots = ts(text=stat_dots(repo_val, 7), cls='cc')
+    repos_val = ts(text=repo_val, cls='value'); repos_val.tail = ' {'
+    contrib_key = ts(text='Contributed', cls='key'); contrib_key.tail = ': '
+    contrib_v = ts(text=contrib_val, cls='value'); contrib_v.tail = '} | '
+    stars_key = ts(text='Stars', cls='key'); stars_key.tail = ':'
+    stars_dots = ts(text=stat_dots(star_val, 14), cls='cc')
+    stars_val = ts(text=star_val, cls='value'); stars_val.tail = '\n'
+    tspans.extend([prefix, repos_key, repos_dots, repos_val,
+                   contrib_key, contrib_v, stars_key, stars_dots, stars_val])
+    advance()
+
+    # Commits & Followers line
+    commit_val = fmt(api_data['commits'])
+    follower_val = fmt(api_data['followers'])
+
+    prefix = ts(text='. ', cls='cc', x=X, y_val=y[0])
+    commits_key = ts(text='Commits', cls='key'); commits_key.tail = ':'
+    commits_dots = ts(text=stat_dots(commit_val, 22), cls='cc')
+    commits_val = ts(text=commit_val, cls='value'); commits_val.tail = ' | '
+    followers_key = ts(text='Followers', cls='key'); followers_key.tail = ':'
+    followers_dots = ts(text=stat_dots(follower_val, 10), cls='cc')
+    followers_val = ts(text=follower_val, cls='value'); followers_val.tail = '\n'
+    tspans.extend([prefix, commits_key, commits_dots, commits_val,
+                   followers_key, followers_dots, followers_val])
+    advance()
+
+    # LOC line
+    loc_net = api_data['loc_net']
+    loc_add = api_data['loc_add']
+    loc_del = api_data['loc_del']
+
+    prefix = ts(text='. ', cls='cc', x=X, y_val=y[0])
+    loc_key = ts(text='Lines of Code on GitHub', cls='key'); loc_key.tail = ':'
+    loc_dots = ts(text=' .... ', cls='cc')  # exact 4 dots
+    loc_val = ts(text=loc_net, cls='value'); loc_val.tail = ' ( '
+    add_val = ts(text=loc_add, cls='addColor')
+    add_pp = ts(text='++', cls='addColor'); add_pp.tail = ', '
+    del_val = ts(text=loc_del, cls='delColor')
+    del_pp = ts(text='--', cls='delColor'); del_pp.tail = ' )\n'
+    tspans.extend([prefix, loc_key, loc_dots, loc_val,
+                   add_val, add_pp, del_val, del_pp])
+    advance()
+
+    return tspans
+
+
+def update_svg(filename, tspans):
+    """Parse SVG, find data-block <text> element, replace its children with generated tspans."""
+    tree = etree.parse(filename)
+    root = tree.getroot()
+    ns = root.nsmap.get(None, '')
+
+    data_text = root.find(f".//{{{ns}}}text[@id='data-block']")
+    if data_text is None:
+        raise ValueError(f"Could not find data-block text element in {filename}")
+
+    # Clear existing children and text
+    for child in list(data_text):
+        data_text.remove(child)
+    data_text.text = '\n'
+
+    # Append generated tspans
+    for t in tspans:
+        data_text.append(t)
+
+    tree.write(filename, encoding='utf-8', xml_declaration=True)
 
 
 def main():
     """Main function to run the GitHub statistics update"""
     global OWNER_ID
-    
+
+    # Load config
+    config = load_config()
+
     print('Calculation times:')
-    
+
     # Get user data and account creation date
     user_data, user_time = perf_counter(user_getter, USER_NAME)
     OWNER_ID, acc_date = user_data
     formatter('account data', user_time)
-    
-    # Calculate age
-    age_data, age_time = perf_counter(daily_readme, BIRTH_DATE)
+
+    # Calculate age using config birthday
+    age_data, age_time = perf_counter(daily_readme, config['profile']['birthday'])
     formatter('age calculation', age_time)
-    
+
     # Get lines of code statistics
     total_loc, loc_time = perf_counter(loc_query, ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'], 7)
     if total_loc[-1]:
         formatter('LOC (cached)', loc_time)
     else:
         formatter('LOC (no cache)', loc_time)
-    
+
     # Get other GitHub statistics
     commit_data, commit_time = perf_counter(commit_counter, 7)
     star_data, star_time = perf_counter(graph_repos_stars, 'stars', ['OWNER'])
@@ -780,18 +907,31 @@ def main():
     for index in range(len(total_loc)-1):
         total_loc[index] = '{:,}'.format(total_loc[index])
 
-    # Update SVG files
-    svg_overwrite('dark_mode.svg', age_data, commit_data, star_data, repo_data, contrib_data, follower_data, total_loc[:-1])
-    svg_overwrite('light_mode.svg', age_data, commit_data, star_data, repo_data, contrib_data, follower_data, total_loc[:-1])
+    # Pack API data
+    api_data = {
+        'age': age_data,
+        'commits': commit_data,
+        'stars': star_data,
+        'repos': repo_data,
+        'contribs': contrib_data,
+        'followers': follower_data,
+        'loc_add': total_loc[0],
+        'loc_del': total_loc[1],
+        'loc_net': total_loc[2],
+    }
+
+    # Update SVG files (build tspans twice since lxml elements can only belong to one tree)
+    update_svg('dark_mode.svg', build_data_tspans(config, api_data))
+    update_svg('light_mode.svg', build_data_tspans(config, api_data))
 
     # Calculate and display total execution time
     total_time = user_time + age_time + loc_time + commit_time + star_time + repo_time + contrib_time + follower_time
-    
+
     # Use a more cross-platform way to display summary
     print('\nSummary:')
     print(f"Total function time: {total_time:.4f} s")
     print(f"Total GitHub GraphQL API calls: {sum(QUERY_COUNT.values())}")
-    
+
     for funct_name, count in QUERY_COUNT.items():
         print(f"   {funct_name}: {count:>6}")
 
