@@ -785,34 +785,51 @@ def build_data_tspans(config, api_data):
     section_break()
     header_line('- GitHub Stats')
 
-    # Repos & Stars line
+    # Repos & Stars / Commits & Followers — compute pipe column so '|' aligns
     repo_val = fmt(api_data['repos'])
     contrib_val = fmt(api_data['contribs'])
     star_val = fmt(api_data['stars'])
+    commit_val = fmt(api_data['commits'])
+    follower_val = fmt(api_data['followers'])
 
+    # Left-half fixed chars (excluding dots string):
+    #   Repos:   '. '(2) + 'Repos'(5) + ':'(1) + dots + repo + ' {'(2) + 'Contributed'(11) + ': '(2) + contrib + '}'(1) = 24 + (n+2) + repo + contrib
+    #   Commits: '. '(2) + 'Commits'(7) + ':'(1) + dots + commit = 10 + (n+2) + commit
+    # Both left halves must equal pipe_pos.  dots string = ' ' + '.'*n + ' ' (len = n+2).
+    pipe_pos = max(27 + len(repo_val) + len(contrib_val),
+                   13 + len(commit_val))
+
+    def make_dots(n):
+        n = max(1, n)
+        return ' ' + '.' * n + ' '
+
+    repo_dots_n = pipe_pos - 26 - len(repo_val) - len(contrib_val)
+    commit_dots_n = pipe_pos - 12 - len(commit_val)
+    # Right half: target - pipe_pos - 3(' | ')
+    star_dots_n = target - pipe_pos - 11 - len(star_val)
+    follower_dots_n = target - pipe_pos - 15 - len(follower_val)
+
+    # Repos & Stars line
     prefix = ts(text='. ', cls='cc', x=X, y_val=y[0])
     repos_key = ts(text='Repos', cls='key'); repos_key.tail = ':'
-    repos_dots = ts(text=stat_dots(repo_val, 7), cls='cc')
+    repos_dots = ts(text=make_dots(repo_dots_n), cls='cc')
     repos_val = ts(text=repo_val, cls='value'); repos_val.tail = ' {'
     contrib_key = ts(text='Contributed', cls='key'); contrib_key.tail = ': '
     contrib_v = ts(text=contrib_val, cls='value'); contrib_v.tail = '} | '
     stars_key = ts(text='Stars', cls='key'); stars_key.tail = ':'
-    stars_dots = ts(text=stat_dots(star_val, 14), cls='cc')
+    stars_dots = ts(text=make_dots(star_dots_n), cls='cc')
     stars_val = ts(text=star_val, cls='value'); stars_val.tail = '\n'
     tspans.extend([prefix, repos_key, repos_dots, repos_val,
                    contrib_key, contrib_v, stars_key, stars_dots, stars_val])
     advance()
 
     # Commits & Followers line
-    commit_val = fmt(api_data['commits'])
-    follower_val = fmt(api_data['followers'])
-
     prefix = ts(text='. ', cls='cc', x=X, y_val=y[0])
     commits_key = ts(text='Commits', cls='key'); commits_key.tail = ':'
-    commits_dots = ts(text=stat_dots(commit_val, 22), cls='cc')
+    commits_dots = ts(text=make_dots(commit_dots_n), cls='cc')
     commits_val = ts(text=commit_val, cls='value'); commits_val.tail = ' | '
     followers_key = ts(text='Followers', cls='key'); followers_key.tail = ':'
-    followers_dots = ts(text=stat_dots(follower_val, 10), cls='cc')
+    followers_dots = ts(text=make_dots(follower_dots_n), cls='cc')
     followers_val = ts(text=follower_val, cls='value'); followers_val.tail = '\n'
     tspans.extend([prefix, commits_key, commits_dots, commits_val,
                    followers_key, followers_dots, followers_val])
