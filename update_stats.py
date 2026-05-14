@@ -162,21 +162,14 @@ def graph_repos_stars(count_type, owner_affiliation, cursor=None):
         'login': USER_NAME, 
         'cursor': cursor
     }
-    request = simple_request('graph_repos_stars', query, variables)
-    
+    repos = simple_request('graph_repos_stars', query, variables).json()['data']['user']['repositories']
+
     if count_type == 'repos':
-        # Directly use totalCount from GitHub API for repository count
-        return request.json()['data']['user']['repositories']['totalCount']
+        return repos['totalCount']
     elif count_type == 'stars':
-        # For stars, we still need to count manually across all repositories
-        result = stars_counter(request.json()['data']['user']['repositories']['edges'])
-        
-        # Check if there are more pages of repositories to fetch for star counting
-        if request.json()['data']['user']['repositories']['pageInfo']['hasNextPage']:
-            next_cursor = request.json()['data']['user']['repositories']['pageInfo']['endCursor']
-            # Recursively call to get stars from next page and add to current result
-            result += graph_repos_stars('stars', owner_affiliation, next_cursor)
-            
+        result = stars_counter(repos['edges'])
+        if repos['pageInfo']['hasNextPage']:
+            result += graph_repos_stars('stars', owner_affiliation, repos['pageInfo']['endCursor'])
         return result
 
 
@@ -257,10 +250,11 @@ def recursive_loc(owner, repo_name, data, cache_comment, addition_total=0, delet
                                    timeout=30)
 
             if request.status_code == 200:
-                if request.json()['data']['repository']['defaultBranchRef'] is not None:
+                branch_ref = request.json()['data']['repository']['defaultBranchRef']
+                if branch_ref is not None:
                     return loc_counter_one_repo(
                         owner, repo_name, data, cache_comment,
-                        request.json()['data']['repository']['defaultBranchRef']['target']['history'],
+                        branch_ref['target']['history'],
                         addition_total, deletion_total, my_commits
                     )
                 else:
