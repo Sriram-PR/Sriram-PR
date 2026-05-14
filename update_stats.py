@@ -213,15 +213,15 @@ def loc_query(owner_affiliation, force_cache=False):
     query ($owner_affiliation: [RepositoryAffiliation], $login: String!, $cursor: String) {
         user(login: $login) {
             repositories(first: 60, after: $cursor, ownerAffiliations: $owner_affiliation) {
-            edges {
-                node {
-                    ... on Repository {
-                        nameWithOwner
-                        defaultBranchRef {
-                            target {
-                                ... on Commit {
-                                    history {
-                                        totalCount
+                edges {
+                    node {
+                        ... on Repository {
+                            nameWithOwner
+                            defaultBranchRef {
+                                target {
+                                    ... on Commit {
+                                        history {
+                                            totalCount
                                         }
                                     }
                                 }
@@ -369,7 +369,7 @@ def commit_counter():
 def user_getter(username):
     """Return the user's GraphQL id as {'id': ...} for comparison against commit author user."""
     query = '''
-    query($login: String!){
+    query ($login: String!) {
         user(login: $login) {
             id
         }
@@ -382,7 +382,7 @@ def user_getter(username):
 def follower_getter(username):
     """Return follower count for the given user."""
     query = '''
-    query($login: String!){
+    query ($login: String!) {
         user(login: $login) {
             followers {
                 totalCount
