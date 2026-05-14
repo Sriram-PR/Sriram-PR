@@ -447,28 +447,13 @@ def perf_counter(funct, *args):
     return funct_return, time.perf_counter() - start
 
 
-def formatter(query_type, difference, funct_return=False, whitespace=0):
-    """
-    Format performance measurement output
-    
-    Args:
-        query_type: Name of the query
-        difference: Time measurement
-        funct_return: Function return value (optional)
-        whitespace: Whitespace padding (optional)
-        
-    Returns:
-        Function return value or formatted string
-    """
-    print('{:<23}'.format('   ' + query_type + ':'), sep='', end='')
+def formatter(query_type, difference):
+    """Print a labeled timing line: '   <name>:       X.XXXX ms' (or 's' if >1s)."""
+    label = f"{'   ' + query_type + ':':<23}"
     if difference > 1:
-        print('{:>12}'.format('%.4f' % difference + ' s '))
+        print(f"{label}{'%.4f' % difference + ' s ':>12}")
     else:
-        print('{:>12}'.format('%.4f' % (difference * 1000) + ' ms'))
-        
-    if whitespace:
-        return f"{'{:,}'.format(funct_return): <{whitespace}}"
-    return funct_return
+        print(f"{label}{'%.4f' % (difference * 1000) + ' ms':>12}")
 
 
 def load_config(path='config.toml'):
