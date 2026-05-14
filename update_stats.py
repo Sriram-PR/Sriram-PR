@@ -34,35 +34,12 @@ OWNER_ID = None
 
 
 def daily_readme(birthday):
-    """
-    Returns the length of time since the given birthday
-    e.g. 'XX years, XX months, XX days'
-    
-    Args:
-        birthday: datetime object representing the birthday
-        
-    Returns:
-        str: Formatted age string
-    """
+    """Returns 'XX years, XX months, XX days' since birthday."""
     diff = relativedelta.relativedelta(datetime.datetime.today(), birthday)
-    return '{} {}, {} {}, {} {}{}'.format(
-        diff.years, 'year' + format_plural(diff.years), 
-        diff.months, 'month' + format_plural(diff.months), 
-        diff.days, 'day' + format_plural(diff.days),
-        ' 🎂' if (diff.months == 0 and diff.days == 0) else '')
-
-
-def format_plural(unit):
-    """
-    Returns a properly formatted plural suffix
-    
-    Args:
-        unit: The quantity to check for plurality
-        
-    Returns:
-        str: 's' if unit is not 1, otherwise empty string
-    """
-    return 's' if unit != 1 else ''
+    def plural(n):
+        return 's' if n != 1 else ''
+    cake = ' 🎂' if (diff.months == 0 and diff.days == 0) else ''
+    return f"{diff.years} year{plural(diff.years)}, {diff.months} month{plural(diff.months)}, {diff.days} day{plural(diff.days)}{cake}"
 
 
 def simple_request(func_name, query, variables):
@@ -174,19 +151,8 @@ def graph_repos_stars(count_type, owner_affiliation):
 
 
 def stars_counter(data):
-    """
-    Count total stars in repositories
-    
-    Args:
-        data: List of repository data
-        
-    Returns:
-        int: Total star count
-    """
-    total_stars = 0
-    for node in data:
-        total_stars += node['node']['stargazers']['totalCount']
-    return total_stars
+    """Sum stargazers totalCount across all repository edges."""
+    return sum(node['node']['stargazers']['totalCount'] for node in data)
 
 
 def _fetch_history_page(owner, repo_name, cursor, data, cache_comment):
