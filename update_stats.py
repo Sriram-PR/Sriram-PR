@@ -396,7 +396,6 @@ def follower_getter(username):
 
 def query_count(funct_id):
     """Increment the API call counter for a given function id."""
-    global QUERY_COUNT
     QUERY_COUNT[funct_id] += 1
 
 
