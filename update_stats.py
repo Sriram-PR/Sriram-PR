@@ -28,7 +28,6 @@ if 'USER_NAME' not in os.environ or not os.environ['USER_NAME']:
 USER_NAME = os.environ['USER_NAME']
 SESSION = requests.Session()
 SESSION.headers.update({'authorization': 'token ' + os.environ['ACCESS_TOKEN']})
-ENABLE_ARCHIVE = os.environ.get('ENABLE_ARCHIVE', 'true').lower() == 'true'
 QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0,
                'fetch_repo_loc': 0, 'loc_query': 0}
 OWNER_ID = None
@@ -316,38 +315,6 @@ def _load_cache(filename):
 def _save_cache(filename, cache):
     with open(filename, 'w') as f:
         json.dump(cache, f, indent=2, sort_keys=True)
-
-
-def add_archive():
-    """Parse cache/repository_archive.txt. Returns [additions, deletions, net, commit_count, repo_count]."""
-    try:
-        with open('cache/repository_archive.txt', 'r') as f:
-            data = f.readlines()
-            
-        # Remove the comment block at the beginning and end
-        content_lines = data[7:len(data)-3]
-        
-        added_loc, deleted_loc, added_commits = 0, 0, 0
-        contributed_repos = len(content_lines)
-        
-        for line in content_lines:
-            repo_hash, total_commits, my_commits, *loc = line.split()
-            added_loc += int(loc[0])
-            deleted_loc += int(loc[1])
-            if my_commits.isdigit():
-                added_commits += int(my_commits)
-                
-        added_commits += int(data[-1].split()[4][:-1])
-        return [added_loc, deleted_loc, added_loc - deleted_loc, added_commits, contributed_repos]
-    except FileNotFoundError:
-        print("Warning: cache/repository_archive.txt not found. Skipping archive data.")
-        return [0, 0, 0, 0, 0]
-    except (ValueError, IndexError, KeyError) as e:
-        print(f"Error parsing archive data: {e}")
-        return [0, 0, 0, 0, 0]
-    except OSError as e:
-        print(f"Error reading archive file: {e}")
-        return [0, 0, 0, 0, 0]
 
 
 def force_close_file(cache):
@@ -662,16 +629,6 @@ def main():
     (repo_data, star_data), repo_star_time = perf_counter(graph_repos_stars, 'both', ['OWNER'])
     contrib_data, contrib_time = perf_counter(graph_repos_stars, 'repos', ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'])
     follower_data, follower_time = perf_counter(follower_getter, USER_NAME)
-
-    if ENABLE_ARCHIVE:
-        try:
-            archived_data = add_archive()
-            for index in range(len(total_loc)-1):
-                total_loc[index] += archived_data[index]
-            contrib_data += archived_data[-1]
-            commit_data += int(archived_data[-2])
-        except (KeyError, IndexError, ValueError, TypeError) as e:
-            print(f"Error merging archive data: {e}")
 
     for index in range(len(total_loc)-1):
         total_loc[index] = f'{total_loc[index]:,}'
