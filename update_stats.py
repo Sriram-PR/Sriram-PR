@@ -124,17 +124,10 @@ def graph_commits(start_date, end_date):
     return int(request.json()['data']['user']['contributionsCollection']['contributionCalendar']['totalContributions'])
 
 
-def graph_repos_stars(count_type, owner_affiliation, cursor=None):
+def graph_repos_stars(count_type, owner_affiliation):
     """
-    Uses GitHub's GraphQL v4 API to return repository or star count
-    
-    Args:
-        count_type: 'repos' or 'stars' to determine what to count
-        owner_affiliation: Repository affiliation filter
-        cursor: Pagination cursor
-        
-    Returns:
-        int: Count of repositories or stars
+    Uses GitHub's GraphQL v4 API to return repo count, star count, or both.
+    count_type: 'repos' | 'stars' | 'both'
     """
     query = '''
     query ($owner_affiliation: [RepositoryAffiliation], $login: String!, $cursor: String) {
@@ -158,26 +151,26 @@ def graph_repos_stars(count_type, owner_affiliation, cursor=None):
             }
         }
     }'''
-    variables = {
-        'owner_affiliation': owner_affiliation, 
-        'login': USER_NAME, 
-        'cursor': cursor
-    }
-    repos = simple_request('graph_repos_stars', query, variables).json()['data']['user']['repositories']
 
-    if count_type == 'repos':
-        return repos['totalCount']
-    elif count_type == 'stars':
-        result = stars_counter(repos['edges'])
-        if repos['pageInfo']['hasNextPage']:
-            result += graph_repos_stars('stars', owner_affiliation, repos['pageInfo']['endCursor'])
-        return result
-    elif count_type == 'both':
-        stars = stars_counter(repos['edges'])
-        if repos['pageInfo']['hasNextPage']:
-            _, more_stars = graph_repos_stars('both', owner_affiliation, repos['pageInfo']['endCursor'])
-            stars += more_stars
-        return (repos['totalCount'], stars)
+    cursor = None
+    total_stars = 0
+    total_count = 0
+    while True:
+        variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME, 'cursor': cursor}
+        repos = simple_request('graph_repos_stars', query, variables).json()['data']['user']['repositories']
+        total_count = repos['totalCount']
+
+        if count_type == 'repos':
+            return total_count
+
+        total_stars += stars_counter(repos['edges'])
+        if not repos['pageInfo']['hasNextPage']:
+            break
+        cursor = repos['pageInfo']['endCursor']
+
+    if count_type == 'stars':
+        return total_stars
+    return (total_count, total_stars)
 
 
 def stars_counter(data):
@@ -196,23 +189,8 @@ def stars_counter(data):
     return total_stars
 
 
-def recursive_loc(owner, repo_name, data, cache_comment, addition_total=0, deletion_total=0, my_commits=0, cursor=None):
-    """
-    Uses GitHub's GraphQL v4 API to fetch commit data with pagination
-    
-    Args:
-        owner: Repository owner
-        repo_name: Repository name
-        data: Cache data
-        cache_comment: Comment data for cache file
-        addition_total: Running total of line additions
-        deletion_total: Running total of line deletions
-        my_commits: Running total of my commits
-        cursor: Pagination cursor
-        
-    Returns:
-        tuple: (additions, deletions, commit_count)
-    """
+def _fetch_history_page(owner, repo_name, cursor, data, cache_comment):
+    """Fetch one page of commit history with 5xx retry. Returns history dict or None (no default branch)."""
     query = '''
     query ($repo_name: String!, $owner: String!, $cursor: String) {
         repository(name: $repo_name, owner: $owner) {
@@ -246,8 +224,6 @@ def recursive_loc(owner, repo_name, data, cache_comment, addition_total=0, delet
         }
     }'''
     variables = {'repo_name': repo_name, 'owner': owner, 'cursor': cursor}
-    
-    # Retry transient 5xx errors with exponential backoff
     max_retries = 5
     for attempt in range(max_retries):
         try:
@@ -255,19 +231,10 @@ def recursive_loc(owner, repo_name, data, cache_comment, addition_total=0, delet
             request = SESSION.post('https://api.github.com/graphql',
                                    json={'query': query, 'variables': variables},
                                    timeout=30)
-
             if request.status_code == 200:
                 branch_ref = request.json()['data']['repository']['defaultBranchRef']
-                if branch_ref is not None:
-                    return loc_counter_one_repo(
-                        owner, repo_name, data, cache_comment,
-                        branch_ref['target']['history'],
-                        addition_total, deletion_total, my_commits
-                    )
-                else:
-                    return 0, 0, 0
+                return branch_ref['target']['history'] if branch_ref else None
 
-            # Retry on 5xx (server errors) — transient GitHub issues
             if 500 <= request.status_code < 600 and attempt < max_retries - 1:
                 backoff = 2 ** attempt
                 print(f"  recursive_loc got {request.status_code}, retrying in {backoff}s (attempt {attempt + 1}/{max_retries})")
@@ -276,11 +243,9 @@ def recursive_loc(owner, repo_name, data, cache_comment, addition_total=0, delet
 
             force_close_file(data, cache_comment)
             if request.status_code == 403:
-                raise Exception('Too many requests in a short amount of time! You\'ve hit the non-documented anti-abuse limit!')
+                raise Exception("Too many requests in a short amount of time! You've hit the non-documented anti-abuse limit!")
             raise Exception(f'recursive_loc() failed with status {request.status_code}: {request.text}')
-
         except requests.exceptions.RequestException as e:
-            # Network-level errors — also retry
             if attempt < max_retries - 1:
                 backoff = 2 ** attempt
                 print(f"  recursive_loc network error, retrying in {backoff}s (attempt {attempt + 1}/{max_retries}): {e}")
@@ -288,63 +253,38 @@ def recursive_loc(owner, repo_name, data, cache_comment, addition_total=0, delet
                 continue
             force_close_file(data, cache_comment)
             raise Exception(f"Error in recursive_loc: {e}")
-        except Exception as e:
-            force_close_file(data, cache_comment)
-            raise Exception(f"Error in recursive_loc: {e}")
+    force_close_file(data, cache_comment)
+    raise Exception("recursive_loc: exhausted retries")
 
 
-def loc_counter_one_repo(owner, repo_name, data, cache_comment, history, addition_total, deletion_total, my_commits):
+def recursive_loc(owner, repo_name, data, cache_comment):
     """
-    Process commit history for a repository
-    
-    Args:
-        owner: Repository owner
-        repo_name: Repository name
-        data: Cache data
-        cache_comment: Comment data for cache file
-        history: Commit history data
-        addition_total: Running total of line additions
-        deletion_total: Running total of line deletions
-        my_commits: Running total of my commits
-        
-    Returns:
-        tuple: (additions, deletions, commit_count)
+    Iteratively page through commit history, summing my additions/deletions/commits.
+    Returns: (additions, deletions, my_commits)
     """
-    global OWNER_ID
-    
-    for node in history['edges']:
-        if node['node']['author']['user'] == OWNER_ID:
-            my_commits += 1
-            addition_total += node['node']['additions']
-            deletion_total += node['node']['deletions']
-
-    if not history['edges'] or not history['pageInfo']['hasNextPage']:
-        return addition_total, deletion_total, my_commits
-    else:
-        return recursive_loc(
-            owner, repo_name, data, cache_comment,
-            addition_total, deletion_total, my_commits,
-            history['pageInfo']['endCursor']
-        )
+    addition_total = 0
+    deletion_total = 0
+    my_commits = 0
+    cursor = None
+    while True:
+        history = _fetch_history_page(owner, repo_name, cursor, data, cache_comment)
+        if history is None:
+            return 0, 0, 0
+        for node in history['edges']:
+            if node['node']['author']['user'] == OWNER_ID:
+                my_commits += 1
+                addition_total += node['node']['additions']
+                deletion_total += node['node']['deletions']
+        if not history['edges'] or not history['pageInfo']['hasNextPage']:
+            return addition_total, deletion_total, my_commits
+        cursor = history['pageInfo']['endCursor']
 
 
-def loc_query(owner_affiliation, comment_size=0, force_cache=False, cursor=None, edges=None):
+def loc_query(owner_affiliation, comment_size=0, force_cache=False):
     """
-    Query all repositories to calculate lines of code statistics
-    
-    Args:
-        owner_affiliation: Repository affiliation filter
-        comment_size: Number of comment lines in cache file
-        force_cache: Whether to force rebuilding the cache
-        cursor: Pagination cursor
-        edges: List of repository edges
-        
-    Returns:
-        list: [additions, deletions, net, cached_status]
+    Query all repositories to calculate lines of code statistics.
+    Returns: list [additions, deletions, net, cached_status]
     """
-    if edges is None:
-        edges = []
-        
     query = '''
     query ($owner_affiliation: [RepositoryAffiliation], $login: String!, $cursor: String) {
         user(login: $login) {
@@ -372,26 +312,18 @@ def loc_query(owner_affiliation, comment_size=0, force_cache=False, cursor=None,
             }
         }
     }'''
-    variables = {
-        'owner_affiliation': owner_affiliation, 
-        'login': USER_NAME, 
-        'cursor': cursor
-    }
-    request = simple_request('loc_query', query, variables)
-    
-    repo_data = request.json()['data']['user']['repositories']
-    edges += repo_data['edges']
-    
-    if repo_data['pageInfo']['hasNextPage']:
-        return loc_query(
-            owner_affiliation, 
-            comment_size, 
-            force_cache, 
-            repo_data['pageInfo']['endCursor'], 
-            edges
-        )
-    else:
-        return cache_builder(edges, comment_size, force_cache)
+
+    edges = []
+    cursor = None
+    while True:
+        variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME, 'cursor': cursor}
+        repo_data = simple_request('loc_query', query, variables).json()['data']['user']['repositories']
+        edges += repo_data['edges']
+        if not repo_data['pageInfo']['hasNextPage']:
+            break
+        cursor = repo_data['pageInfo']['endCursor']
+
+    return cache_builder(edges, comment_size, force_cache)
 
 
 def cache_builder(edges, comment_size, force_cache, loc_add=0, loc_del=0):
