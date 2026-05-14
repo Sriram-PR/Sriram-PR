@@ -388,8 +388,11 @@ def add_archive():
     except FileNotFoundError:
         print("Warning: cache/repository_archive.txt not found. Skipping archive data.")
         return [0, 0, 0, 0, 0]
-    except Exception as e:
-        print(f"Error processing archive data: {e}")
+    except (ValueError, IndexError, KeyError) as e:
+        print(f"Error parsing archive data: {e}")
+        return [0, 0, 0, 0, 0]
+    except OSError as e:
+        print(f"Error reading archive file: {e}")
         return [0, 0, 0, 0, 0]
 
 
