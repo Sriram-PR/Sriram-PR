@@ -674,7 +674,7 @@ def main():
             print(f"Error merging archive data: {e}")
 
     for index in range(len(total_loc)-1):
-        total_loc[index] = '{:,}'.format(total_loc[index])
+        total_loc[index] = f'{total_loc[index]:,}'
 
     api_data = {
         'age': age_data,
