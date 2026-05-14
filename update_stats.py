@@ -246,31 +246,49 @@ def recursive_loc(owner, repo_name, data, cache_comment, addition_total=0, delet
     }'''
     variables = {'repo_name': repo_name, 'owner': owner, 'cursor': cursor}
     
-    try:
-        # We can't use simple_request here because we need to handle the file specially
-        query_count('recursive_loc')
-        request = requests.post('https://api.github.com/graphql', 
-                               json={'query': query, 'variables': variables}, 
-                               headers=HEADERS)
-        
-        if request.status_code == 200:
-            if request.json()['data']['repository']['defaultBranchRef'] is not None:
-                return loc_counter_one_repo(
-                    owner, repo_name, data, cache_comment,
-                    request.json()['data']['repository']['defaultBranchRef']['target']['history'],
-                    addition_total, deletion_total, my_commits
-                )
-            else:
-                return 0, 0, 0
-                
-        force_close_file(data, cache_comment)
-        if request.status_code == 403:
-            raise Exception('Too many requests in a short amount of time! You\'ve hit the non-documented anti-abuse limit!')
-        raise Exception(f'recursive_loc() failed with status {request.status_code}: {request.text}')
-        
-    except Exception as e:
-        force_close_file(data, cache_comment)
-        raise Exception(f"Error in recursive_loc: {e}")
+    # Retry transient 5xx errors with exponential backoff
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            query_count('recursive_loc')
+            request = requests.post('https://api.github.com/graphql',
+                                   json={'query': query, 'variables': variables},
+                                   headers=HEADERS, timeout=30)
+
+            if request.status_code == 200:
+                if request.json()['data']['repository']['defaultBranchRef'] is not None:
+                    return loc_counter_one_repo(
+                        owner, repo_name, data, cache_comment,
+                        request.json()['data']['repository']['defaultBranchRef']['target']['history'],
+                        addition_total, deletion_total, my_commits
+                    )
+                else:
+                    return 0, 0, 0
+
+            # Retry on 5xx (server errors) — transient GitHub issues
+            if 500 <= request.status_code < 600 and attempt < max_retries - 1:
+                backoff = 2 ** attempt
+                print(f"  recursive_loc got {request.status_code}, retrying in {backoff}s (attempt {attempt + 1}/{max_retries})")
+                time.sleep(backoff)
+                continue
+
+            force_close_file(data, cache_comment)
+            if request.status_code == 403:
+                raise Exception('Too many requests in a short amount of time! You\'ve hit the non-documented anti-abuse limit!')
+            raise Exception(f'recursive_loc() failed with status {request.status_code}: {request.text}')
+
+        except requests.exceptions.RequestException as e:
+            # Network-level errors — also retry
+            if attempt < max_retries - 1:
+                backoff = 2 ** attempt
+                print(f"  recursive_loc network error, retrying in {backoff}s (attempt {attempt + 1}/{max_retries}): {e}")
+                time.sleep(backoff)
+                continue
+            force_close_file(data, cache_comment)
+            raise Exception(f"Error in recursive_loc: {e}")
+        except Exception as e:
+            force_close_file(data, cache_comment)
+            raise Exception(f"Error in recursive_loc: {e}")
 
 
 def loc_counter_one_repo(owner, repo_name, data, cache_comment, history, addition_total, deletion_total, my_commits):
