@@ -456,12 +456,6 @@ def build_data_tspans(config, api_data):
     def advance():
         y[0] += STEP
 
-    def stat_dots(val_str, slot):
-        just = max(0, slot - len(val_str))
-        if just <= 2:
-            return {0: '', 1: ' ', 2: '. '}.get(just, '')
-        return ' ' + '.' * just + ' '
-
     def fmt(n):
         return f"{n:,}" if isinstance(n, int) else str(n)
 
