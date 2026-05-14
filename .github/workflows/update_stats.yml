@@ -45,5 +45,5 @@ jobs:
         run: |
           git config --global user.email "github-actions-bot@sriram-pr.github.io"
           git config --global user.name "Sriram-PR/GitHub-Actions-Bot"
-          git add -A
+          git add dark_mode.svg light_mode.svg cache/
           git diff --staged --quiet || (git commit -m "Update GitHub stats - $(date +'%Y-%m-%d')" && git push)
