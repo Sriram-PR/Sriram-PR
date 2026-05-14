@@ -29,7 +29,7 @@ SESSION = requests.Session()
 SESSION.headers.update({'authorization': 'token ' + os.environ['ACCESS_TOKEN']})
 ENABLE_ARCHIVE = os.environ.get('ENABLE_ARCHIVE', 'true').lower() == 'true'
 QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0, 
-               'recursive_loc': 0, 'graph_commits': 0, 'loc_query': 0}
+               'fetch_repo_loc': 0, 'graph_commits': 0, 'loc_query': 0}
 OWNER_ID = None
 
 
@@ -193,7 +193,7 @@ def _fetch_history_page(owner, repo_name, cursor, data, cache_comment):
     max_retries = 5
     for attempt in range(max_retries):
         try:
-            query_count('recursive_loc')
+            query_count('fetch_repo_loc')
             request = SESSION.post('https://api.github.com/graphql',
                                    json={'query': query, 'variables': variables},
                                    timeout=30)
@@ -203,27 +203,27 @@ def _fetch_history_page(owner, repo_name, cursor, data, cache_comment):
 
             if 500 <= request.status_code < 600 and attempt < max_retries - 1:
                 backoff = 2 ** attempt
-                print(f"  recursive_loc got {request.status_code}, retrying in {backoff}s (attempt {attempt + 1}/{max_retries})")
+                print(f"  fetch_repo_loc got {request.status_code}, retrying in {backoff}s (attempt {attempt + 1}/{max_retries})")
                 time.sleep(backoff)
                 continue
 
             force_close_file(data, cache_comment)
             if request.status_code == 403:
                 raise Exception("Too many requests in a short amount of time! You've hit the non-documented anti-abuse limit!")
-            raise Exception(f'recursive_loc() failed with status {request.status_code}: {request.text}')
+            raise Exception(f'fetch_repo_loc() failed with status {request.status_code}: {request.text}')
         except requests.exceptions.RequestException as e:
             if attempt < max_retries - 1:
                 backoff = 2 ** attempt
-                print(f"  recursive_loc network error, retrying in {backoff}s (attempt {attempt + 1}/{max_retries}): {e}")
+                print(f"  fetch_repo_loc network error, retrying in {backoff}s (attempt {attempt + 1}/{max_retries}): {e}")
                 time.sleep(backoff)
                 continue
             force_close_file(data, cache_comment)
-            raise Exception(f"Error in recursive_loc: {e}")
+            raise Exception(f"Error in fetch_repo_loc: {e}")
     force_close_file(data, cache_comment)
-    raise Exception("recursive_loc: exhausted retries")
+    raise Exception("fetch_repo_loc: exhausted retries")
 
 
-def recursive_loc(owner, repo_name, data, cache_comment):
+def fetch_repo_loc(owner, repo_name, data, cache_comment):
     """
     Iteratively page through commit history, summing my additions/deletions/commits.
     Returns: (additions, deletions, my_commits)
@@ -328,7 +328,7 @@ def cache_builder(edges, comment_size, force_cache, loc_add=0, loc_del=0):
                 current_commit_count = edges[index]['node']['defaultBranchRef']['target']['history']['totalCount']
                 if int(commit_count) != current_commit_count:
                     owner, repo_name = repo_name.split('/')
-                    loc = recursive_loc(owner, repo_name, data, cache_comment)
+                    loc = fetch_repo_loc(owner, repo_name, data, cache_comment)
                     data[index] = f"{repo_hash} {current_commit_count} {loc[2]} {loc[0]} {loc[1]}\n"
             except TypeError:  # repo is empty
                 data[index] = f"{repo_hash} 0 0 0 0\n"
