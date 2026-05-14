@@ -24,7 +24,8 @@ if 'USER_NAME' not in os.environ or not os.environ['USER_NAME']:
 
 # Configuration constants
 USER_NAME = os.environ['USER_NAME']
-HEADERS = {'authorization': 'token ' + os.environ['ACCESS_TOKEN']}
+SESSION = requests.Session()
+SESSION.headers.update({'authorization': 'token ' + os.environ['ACCESS_TOKEN']})
 ENABLE_ARCHIVE = os.environ.get('ENABLE_ARCHIVE', 'true').lower() == 'true'
 QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0, 
                'recursive_loc': 0, 'graph_commits': 0, 'loc_query': 0}
@@ -80,9 +81,9 @@ def simple_request(func_name, query, variables):
     """
     query_count(func_name)
     try:
-        request = requests.post('https://api.github.com/graphql', 
-                               json={'query': query, 'variables': variables}, 
-                               headers=HEADERS)
+        request = SESSION.post('https://api.github.com/graphql',
+                               json={'query': query, 'variables': variables},
+                               timeout=30)
         if request.status_code == 200:
             return request
         
@@ -251,9 +252,9 @@ def recursive_loc(owner, repo_name, data, cache_comment, addition_total=0, delet
     for attempt in range(max_retries):
         try:
             query_count('recursive_loc')
-            request = requests.post('https://api.github.com/graphql',
+            request = SESSION.post('https://api.github.com/graphql',
                                    json={'query': query, 'variables': variables},
-                                   headers=HEADERS, timeout=30)
+                                   timeout=30)
 
             if request.status_code == 200:
                 if request.json()['data']['repository']['defaultBranchRef'] is not None:
