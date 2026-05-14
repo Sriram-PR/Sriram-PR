@@ -327,92 +327,56 @@ def loc_query(owner_affiliation, comment_size=0, force_cache=False):
 
 
 def cache_builder(edges, comment_size, force_cache, loc_add=0, loc_del=0):
-    """
-    Builds and maintains the cache of repository data
-    
-    Args:
-        edges: List of repository edges
-        comment_size: Number of comment lines in cache file
-        force_cache: Whether to force rebuilding the cache
-        loc_add: Running total of line additions
-        loc_del: Running total of line deletions
-        
-    Returns:
-        list: [additions, deletions, net, cached_status]
-    """
-    cached = True  # Assume all repositories are cached
+    """Builds and maintains the cache of repository data. Returns [additions, deletions, net, cached]."""
+    cached = True
     filename = get_cache_filename(USER_NAME)
-    
+
     try:
         with open(filename, 'r') as f:
-            data = f.readlines()
+            file_lines = f.readlines()
     except FileNotFoundError:
-        # If the cache file doesn't exist, create it
-        data = []
-        if comment_size > 0:
-            for _ in range(comment_size):
-                data.append('This line is a comment block. Write whatever you want here.\n')
-        with open(filename, 'w') as f:
-            f.writelines(data)
+        file_lines = ['This line is a comment block. Write whatever you want here.\n'] * comment_size
 
-    if len(data) - comment_size != len(edges) or force_cache:
-        # If the number of repos has changed, or force_cache is True
+    cache_comment = file_lines[:comment_size]
+    # Pad cache_comment if missing lines (e.g., new file)
+    while len(cache_comment) < comment_size:
+        cache_comment.append('This line is a comment block. Write whatever you want here.\n')
+
+    data = file_lines[comment_size:]
+
+    if len(data) != len(edges) or force_cache:
+        # Repo count changed or forced — rebuild data lines from scratch
         cached = False
-        flush_cache(edges, filename, comment_size)
-        with open(filename, 'r') as f:
-            data = f.readlines()
+        data = []
+        for node in edges:
+            repo_hash = hashlib.sha256(node['node']['nameWithOwner'].encode('utf-8')).hexdigest()
+            data.append(f"{repo_hash} 0 0 0 0\n")
 
-    cache_comment = data[:comment_size]  # save the comment block
-    data = data[comment_size:]  # remove those lines
-    
     for index in range(len(edges)):
         repo_hash, commit_count, *__ = data[index].split()
         repo_name = edges[index]['node']['nameWithOwner']
         repo_name_hash = hashlib.sha256(repo_name.encode('utf-8')).hexdigest()
-        
+
         if repo_hash == repo_name_hash:
             try:
                 current_commit_count = edges[index]['node']['defaultBranchRef']['target']['history']['totalCount']
                 if int(commit_count) != current_commit_count:
-                    # if commit count has changed, update loc for that repo
                     owner, repo_name = repo_name.split('/')
                     loc = recursive_loc(owner, repo_name, data, cache_comment)
                     data[index] = f"{repo_hash} {current_commit_count} {loc[2]} {loc[0]} {loc[1]}\n"
-            except TypeError:  # If the repo is empty
+            except TypeError:  # repo is empty
                 data[index] = f"{repo_hash} 0 0 0 0\n"
-                
+
     with open(filename, 'w') as f:
         f.writelines(cache_comment)
         f.writelines(data)
-        
+
     for line in data:
         loc = line.split()
         loc_add += int(loc[3])
         loc_del += int(loc[4])
-        
+
     return [loc_add, loc_del, loc_add - loc_del, cached]
-
-
-def flush_cache(edges, filename, comment_size):
-    """
-    Wipes and reinitializes the cache file
-    
-    Args:
-        edges: List of repository edges
-        filename: Path to cache file
-        comment_size: Number of comment lines to preserve
-    """
-    with open(filename, 'r') as f:
-        data = []
-        if comment_size > 0:
-            data = f.readlines()[:comment_size]  # only save the comment
-            
-    with open(filename, 'w') as f:
-        f.writelines(data)
-        for node in edges:
-            repo_name = node['node']['nameWithOwner']
-            repo_hash = hashlib.sha256(repo_name.encode('utf-8')).hexdigest()
-            f.write(f"{repo_hash} 0 0 0 0\n")
 
 
 def get_cache_filename(username):
