@@ -69,10 +69,7 @@ def simple_request(func_name, query, variables):
 
 
 def graph_repos_stars(count_type, owner_affiliation):
-    """
-    Uses GitHub's GraphQL v4 API to return repo count, star count, or both.
-    count_type: 'repos' | 'stars' | 'both'
-    """
+    """Return repo count, star count, or both. count_type: 'repos' | 'stars' | 'both'."""
     query = '''
     query ($owner_affiliation: [RepositoryAffiliation], $login: String!, $cursor: String) {
         user(login: $login) {
@@ -191,10 +188,7 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
 
 
 def fetch_repo_loc(owner, repo_name, cache):
-    """
-    Iteratively page through commit history, summing my additions/deletions/commits.
-    Returns: (additions, deletions, my_commits)
-    """
+    """Page through commit history, summing my additions/deletions/commits. Returns (add, del, my_commits)."""
     addition_total = 0
     deletion_total = 0
     my_commits = 0
@@ -214,10 +208,7 @@ def fetch_repo_loc(owner, repo_name, cache):
 
 
 def loc_query(owner_affiliation, force_cache=False):
-    """
-    Query all repositories to calculate lines of code statistics.
-    Returns: list [additions, deletions, net, cached_status]
-    """
+    """Query repositories and compute LOC stats. Returns [additions, deletions, net, cached_status]."""
     query = '''
     query ($owner_affiliation: [RepositoryAffiliation], $login: String!, $cursor: String) {
         user(login: $login) {
@@ -328,12 +319,7 @@ def _save_cache(filename, cache):
 
 
 def add_archive():
-    """
-    Add statistics from archived repositories
-    
-    Returns:
-        list: [additions, deletions, net, commit_count, repo_count]
-    """
+    """Parse cache/repository_archive.txt. Returns [additions, deletions, net, commit_count, repo_count]."""
     try:
         with open('cache/repository_archive.txt', 'r') as f:
             data = f.readlines()
@@ -394,15 +380,7 @@ def user_getter(username):
 
 
 def follower_getter(username):
-    """
-    Get follower count for a user
-    
-    Args:
-        username: GitHub username
-        
-    Returns:
-        int: Follower count
-    """
+    """Return follower count for the given user."""
     query = '''
     query($login: String!){
         user(login: $login) {
@@ -417,27 +395,13 @@ def follower_getter(username):
 
 
 def query_count(funct_id):
-    """
-    Track API usage
-    
-    Args:
-        funct_id: Function identifier
-    """
+    """Increment the API call counter for a given function id."""
     global QUERY_COUNT
     QUERY_COUNT[funct_id] += 1
 
 
 def perf_counter(funct, *args):
-    """
-    Measure function performance
-    
-    Args:
-        funct: Function to measure
-        *args: Arguments to pass to function
-        
-    Returns:
-        tuple: (function_result, execution_time)
-    """
+    """Run funct(*args) and return (result, elapsed_seconds)."""
     start = time.perf_counter()
     funct_return = funct(*args)
     return funct_return, time.perf_counter() - start
@@ -682,7 +646,7 @@ def update_svg(filename, tspans):
 
 
 def main():
-    """Main function to run the GitHub statistics update"""
+    """Fetch all stats, build the SVG data block, and write both theme SVGs."""
     global OWNER_ID
 
     # Load config
