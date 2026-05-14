@@ -41,9 +41,20 @@ jobs:
           ENABLE_ARCHIVE: "true"
         run: python update_stats.py
       
-      - name: Commit and push if changed
+      - name: Commit if changed
+        id: commit
         run: |
           git config --global user.email "github-actions-bot@sriram-pr.github.io"
           git config --global user.name "Sriram-PR/GitHub-Actions-Bot"
           git add dark_mode.svg light_mode.svg cache/
-          git diff --staged --quiet || (git commit -m "Update GitHub stats - $(date +'%Y-%m-%d')" && git push)
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "Update GitHub stats - $(date +'%Y-%m-%d')"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push
+        if: steps.commit.outputs.changed == 'true'
+        run: git push
