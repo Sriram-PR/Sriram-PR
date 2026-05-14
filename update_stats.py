@@ -34,6 +34,14 @@ QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0,
 OWNER_ID = None
 
 
+class GitHubAPIError(Exception):
+    """Non-2xx response or network failure from the GitHub API."""
+
+
+class RateLimitError(GitHubAPIError):
+    """Hit GitHub's documented or undocumented rate limit."""
+
+
 def daily_readme(birthday):
     """Returns 'XX years, XX months, XX days' since birthday."""
     diff = relativedelta.relativedelta(datetime.datetime.today(), birthday)
@@ -44,32 +52,20 @@ def daily_readme(birthday):
 
 
 def simple_request(func_name, query, variables):
-    """
-    Sends a GraphQL request to GitHub API with error handling
-    
-    Args:
-        func_name: Name of the calling function for error reporting
-        query: GraphQL query string
-        variables: Variables for the GraphQL query
-        
-    Returns:
-        Response object from requests
-        
-    Raises:
-        Exception: If request fails
-    """
+    """Send a GraphQL request. Raises GitHubAPIError on non-200, RateLimitError on 403."""
     query_count(func_name)
     try:
         request = SESSION.post('https://api.github.com/graphql',
                                json={'query': query, 'variables': variables},
                                timeout=30)
-        if request.status_code == 200:
-            return request
-        
-        error_msg = f"{func_name} failed with status {request.status_code}: {request.text}"
-        raise Exception(error_msg)
     except requests.RequestException as e:
-        raise Exception(f"{func_name} request failed: {e}")
+        raise GitHubAPIError(f"{func_name} request failed: {e}") from e
+
+    if request.status_code == 200:
+        return request
+    if request.status_code == 403:
+        raise RateLimitError(f"{func_name} hit rate limit: {request.text}")
+    raise GitHubAPIError(f"{func_name} failed with status {request.status_code}: {request.text}")
 
 
 def graph_repos_stars(count_type, owner_affiliation):
@@ -180,8 +176,8 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
 
             force_close_file(cache)
             if request.status_code == 403:
-                raise Exception("Too many requests in a short amount of time! You've hit the non-documented anti-abuse limit!")
-            raise Exception(f'fetch_repo_loc() failed with status {request.status_code}: {request.text}')
+                raise RateLimitError("fetch_repo_loc hit anti-abuse rate limit")
+            raise GitHubAPIError(f'fetch_repo_loc failed with status {request.status_code}: {request.text}')
         except requests.exceptions.RequestException as e:
             if attempt < max_retries - 1:
                 backoff = 2 ** attempt
@@ -189,9 +185,9 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
                 time.sleep(backoff)
                 continue
             force_close_file(cache)
-            raise Exception(f"Error in fetch_repo_loc: {e}")
+            raise GitHubAPIError(f"fetch_repo_loc network error: {e}") from e
     force_close_file(cache)
-    raise Exception("fetch_repo_loc: exhausted retries")
+    raise GitHubAPIError("fetch_repo_loc: exhausted retries")
 
 
 def fetch_repo_loc(owner, repo_name, cache):
@@ -723,8 +719,8 @@ def main():
                 total_loc[index] += archived_data[index]
             contrib_data += archived_data[-1]  # Add archived repos to contributed repos count
             commit_data += int(archived_data[-2])
-        except Exception as e:
-            print(f"Error adding archive data: {e}")
+        except (KeyError, IndexError, ValueError, TypeError) as e:
+            print(f"Error merging archive data: {e}")
 
     # Format LOC numbers
     for index in range(len(total_loc)-1):
