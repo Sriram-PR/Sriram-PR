@@ -385,26 +385,16 @@ def commit_counter():
 
 
 def user_getter(username):
-    """
-    Get user ID and account creation date
-    
-    Args:
-        username: GitHub username
-        
-    Returns:
-        tuple: (user_id_dict, created_at_date)
-    """
+    """Return the user's GraphQL id as {'id': ...} for comparison against commit author user."""
     query = '''
     query($login: String!){
         user(login: $login) {
             id
-            createdAt
         }
     }'''
     variables = {'login': username}
     request = simple_request('user_getter', query, variables)
-    response_data = request.json()['data']['user']
-    return {'id': response_data['id']}, response_data['createdAt']
+    return {'id': request.json()['data']['user']['id']}
 
 
 def follower_getter(username):
@@ -719,9 +709,8 @@ def main():
 
     print('Calculation times:')
 
-    # Get user data and account creation date
-    user_data, user_time = perf_counter(user_getter, USER_NAME)
-    OWNER_ID, acc_date = user_data
+    # Get user id (used to match against commit authors)
+    OWNER_ID, user_time = perf_counter(user_getter, USER_NAME)
     formatter('account data', user_time)
 
     # Calculate age using config birthday
