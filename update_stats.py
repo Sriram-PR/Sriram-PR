@@ -1,3 +1,4 @@
+import copy
 import datetime
 import os
 import sys
@@ -965,9 +966,10 @@ def main():
         'loc_net': total_loc[2],
     }
 
-    # Update SVG files (build tspans twice since lxml elements can only belong to one tree)
-    update_svg('dark_mode.svg', build_data_tspans(config, api_data))
-    update_svg('light_mode.svg', build_data_tspans(config, api_data))
+    # Build tspans once, deepcopy for second SVG (lxml elements can only belong to one tree)
+    tspans = build_data_tspans(config, api_data)
+    update_svg('dark_mode.svg', [copy.deepcopy(t) for t in tspans])
+    update_svg('light_mode.svg', tspans)
 
     # Calculate and display total execution time
     total_time = user_time + age_time + loc_time + commit_time + repo_star_time + contrib_time + follower_time
