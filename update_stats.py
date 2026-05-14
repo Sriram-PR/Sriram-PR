@@ -171,6 +171,12 @@ def graph_repos_stars(count_type, owner_affiliation, cursor=None):
         if repos['pageInfo']['hasNextPage']:
             result += graph_repos_stars('stars', owner_affiliation, repos['pageInfo']['endCursor'])
         return result
+    elif count_type == 'both':
+        stars = stars_counter(repos['edges'])
+        if repos['pageInfo']['hasNextPage']:
+            _, more_stars = graph_repos_stars('both', owner_affiliation, repos['pageInfo']['endCursor'])
+            stars += more_stars
+        return (repos['totalCount'], stars)
 
 
 def stars_counter(data):
@@ -927,8 +933,7 @@ def main():
 
     # Get other GitHub statistics
     commit_data, commit_time = perf_counter(commit_counter, 7)
-    star_data, star_time = perf_counter(graph_repos_stars, 'stars', ['OWNER'])
-    repo_data, repo_time = perf_counter(graph_repos_stars, 'repos', ['OWNER'])
+    (repo_data, star_data), repo_star_time = perf_counter(graph_repos_stars, 'both', ['OWNER'])
     contrib_data, contrib_time = perf_counter(graph_repos_stars, 'repos', ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'])
     follower_data, follower_time = perf_counter(follower_getter, USER_NAME)
 
@@ -965,7 +970,7 @@ def main():
     update_svg('light_mode.svg', build_data_tspans(config, api_data))
 
     # Calculate and display total execution time
-    total_time = user_time + age_time + loc_time + commit_time + star_time + repo_time + contrib_time + follower_time
+    total_time = user_time + age_time + loc_time + commit_time + repo_star_time + contrib_time + follower_time
 
     # Use a more cross-platform way to display summary
     print('\nSummary:')
