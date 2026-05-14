@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# IDE / editor
+.vscode/
+.idea/
+
+# Local agent / browser artifacts
+.playwright-mcp/
+.claude/
+
+# Local preview renders
+*.png
