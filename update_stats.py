@@ -29,8 +29,8 @@ USER_NAME = os.environ['USER_NAME']
 SESSION = requests.Session()
 SESSION.headers.update({'authorization': 'token ' + os.environ['ACCESS_TOKEN']})
 ENABLE_ARCHIVE = os.environ.get('ENABLE_ARCHIVE', 'true').lower() == 'true'
-QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0, 
-               'fetch_repo_loc': 0, 'graph_commits': 0, 'loc_query': 0}
+QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0,
+               'fetch_repo_loc': 0, 'loc_query': 0}
 OWNER_ID = None
 
 
@@ -70,36 +70,6 @@ def simple_request(func_name, query, variables):
         raise Exception(error_msg)
     except requests.RequestException as e:
         raise Exception(f"{func_name} request failed: {e}")
-
-
-def graph_commits(start_date, end_date):
-    """
-    Uses GitHub's GraphQL v4 API to return total commit count
-    
-    Args:
-        start_date: Start date for commit range
-        end_date: End date for commit range
-        
-    Returns:
-        int: Total number of commits
-    """
-    query = '''
-    query($start_date: DateTime!, $end_date: DateTime!, $login: String!) {
-        user(login: $login) {
-            contributionsCollection(from: $start_date, to: $end_date) {
-                contributionCalendar {
-                    totalContributions
-                }
-            }
-        }
-    }'''
-    variables = {
-        'start_date': start_date,
-        'end_date': end_date, 
-        'login': USER_NAME
-    }
-    request = simple_request('graph_commits', query, variables)
-    return int(request.json()['data']['user']['contributionsCollection']['contributionCalendar']['totalContributions'])
 
 
 def graph_repos_stars(count_type, owner_affiliation):
