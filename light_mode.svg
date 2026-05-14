@@ -15,7 +15,7 @@
   - loc_del: Lines of code deleted
   
   Each element has a corresponding '_dots' element for alignment.
---><svg xmlns="http://www.w3.org/2000/svg" font-family="ConsolasFallback,Consolas,monospace" width="985px" height="530px" font-size="16px">
+--><svg xmlns="http://www.w3.org/2000/svg" font-family="ConsolasFallback,Consolas,monospace" width="985px" height="490px" font-size="16px">
 <style>
 @font-face {
 src: local('Consolas'), local('Consolas Bold');
@@ -31,24 +31,24 @@ size-adjust: 109%;
 .cc {fill: #c2cfde;}
 text, tspan {white-space: pre;}
 </style>
-<rect width="985px" height="530px" fill="#f6f8fa" rx="15"/>
-<text x="15" y="130" fill="#24292f">
-<tspan x="15" y="130">              a8888b.           </tspan>
-<tspan x="15" y="150">             d888888b.          </tspan>
-<tspan x="15" y="170">             8P"YP"Y88          </tspan>
-<tspan x="15" y="190">             8|o||o|88          </tspan>
-<tspan x="15" y="210">             8'    .88          </tspan>
-<tspan x="15" y="230">             8`._.' Y8.         </tspan>
-<tspan x="15" y="250">            d/      `8b.        </tspan>
-<tspan x="15" y="270">          .dP   .     Y8b.      </tspan>
-<tspan x="15" y="290">         d8:'   "   `::88b.     </tspan>
-<tspan x="15" y="310">        d8"           `Y88b     </tspan>
-<tspan x="15" y="330">       :8P     '       :888     </tspan>
-<tspan x="15" y="350">        8a.    :      _a88P     </tspan>
-<tspan x="15" y="370">      ._/"Yaa_ :    .| 88P|    </tspan>
-<tspan x="15" y="390">       \    YP"      `| 8P `.  </tspan>
-<tspan x="15" y="410">       /     \._____.d|    .'   </tspan>
-<tspan x="15" y="430">       `--..__)888888P`._.'     </tspan>
+<rect width="985px" height="490px" fill="#f6f8fa" rx="15"/>
+<text x="15" y="95" fill="#24292f">
+<tspan x="15" y="95">              a8888b.           </tspan>
+<tspan x="15" y="115">             d888888b.          </tspan>
+<tspan x="15" y="135">             8P"YP"Y88          </tspan>
+<tspan x="15" y="155">             8|o||o|88          </tspan>
+<tspan x="15" y="175">             8'    .88          </tspan>
+<tspan x="15" y="195">             8`._.' Y8.         </tspan>
+<tspan x="15" y="215">            d/      `8b.        </tspan>
+<tspan x="15" y="235">          .dP   .     Y8b.      </tspan>
+<tspan x="15" y="255">         d8:'   "   `::88b.     </tspan>
+<tspan x="15" y="275">        d8"           `Y88b     </tspan>
+<tspan x="15" y="295">       :8P     '       :888     </tspan>
+<tspan x="15" y="315">        8a.    :      _a88P     </tspan>
+<tspan x="15" y="335">      ._/"Yaa_ :    .| 88P|    </tspan>
+<tspan x="15" y="355">       \    YP"      `| 8P `.  </tspan>
+<tspan x="15" y="375">       /     \._____.d|    .'   </tspan>
+<tspan x="15" y="395">       `--..__)888888P`._.'     </tspan>
 </text>
 <text x="390" y="30" fill="#24292f" id="data-block">
 <tspan x="390" y="30">sriram@pr</tspan> -——————————————————————————————————————————————-—-
