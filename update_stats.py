@@ -649,48 +649,40 @@ def main():
     """Fetch all stats, build the SVG data block, and write both theme SVGs."""
     global OWNER_ID
 
-    # Load config
     config = load_config()
 
     print('Calculation times:')
 
-    # Get user id (used to match against commit authors)
     OWNER_ID, user_time = perf_counter(user_getter, USER_NAME)
     formatter('account data', user_time)
 
-    # Calculate age using config birthday
     age_data, age_time = perf_counter(daily_readme, config['profile']['birthday'])
     formatter('age calculation', age_time)
 
-    # Get lines of code statistics
     total_loc, loc_time = perf_counter(loc_query, ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'])
     if total_loc[-1]:
         formatter('LOC (cached)', loc_time)
     else:
         formatter('LOC (no cache)', loc_time)
 
-    # Get other GitHub statistics
     commit_data, commit_time = perf_counter(commit_counter)
     (repo_data, star_data), repo_star_time = perf_counter(graph_repos_stars, 'both', ['OWNER'])
     contrib_data, contrib_time = perf_counter(graph_repos_stars, 'repos', ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'])
     follower_data, follower_time = perf_counter(follower_getter, USER_NAME)
 
-    # Add archived repository data if enabled
     if ENABLE_ARCHIVE:
         try:
             archived_data = add_archive()
             for index in range(len(total_loc)-1):
                 total_loc[index] += archived_data[index]
-            contrib_data += archived_data[-1]  # Add archived repos to contributed repos count
+            contrib_data += archived_data[-1]
             commit_data += int(archived_data[-2])
         except (KeyError, IndexError, ValueError, TypeError) as e:
             print(f"Error merging archive data: {e}")
 
-    # Format LOC numbers
     for index in range(len(total_loc)-1):
         total_loc[index] = '{:,}'.format(total_loc[index])
 
-    # Pack API data
     api_data = {
         'age': age_data,
         'commits': commit_data,
@@ -703,15 +695,13 @@ def main():
         'loc_net': total_loc[2],
     }
 
-    # Build tspans once, deepcopy for second SVG (lxml elements can only belong to one tree)
+    # deepcopy because lxml elements can only belong to one tree
     tspans = build_data_tspans(config, api_data)
     update_svg('dark_mode.svg', [copy.deepcopy(t) for t in tspans])
     update_svg('light_mode.svg', tspans)
 
-    # Calculate and display total execution time
     total_time = user_time + age_time + loc_time + commit_time + repo_star_time + contrib_time + follower_time
 
-    # Use a more cross-platform way to display summary
     print('\nSummary:')
     print(f"Total function time: {total_time:.4f} s")
     print(f"Total GitHub GraphQL API calls: {sum(QUERY_COUNT.values())}")
