@@ -1,5 +1,6 @@
 import copy
 import datetime
+import json
 import os
 import sys
 import time
@@ -155,7 +156,7 @@ def stars_counter(data):
     return sum(node['node']['stargazers']['totalCount'] for node in data)
 
 
-def _fetch_history_page(owner, repo_name, cursor, data, cache_comment):
+def _fetch_history_page(owner, repo_name, cursor, cache):
     """Fetch one page of commit history with 5xx retry. Returns history dict or None (no default branch)."""
     query = '''
     query ($repo_name: String!, $owner: String!, $cursor: String) {
@@ -207,7 +208,7 @@ def _fetch_history_page(owner, repo_name, cursor, data, cache_comment):
                 time.sleep(backoff)
                 continue
 
-            force_close_file(data, cache_comment)
+            force_close_file(cache)
             if request.status_code == 403:
                 raise Exception("Too many requests in a short amount of time! You've hit the non-documented anti-abuse limit!")
             raise Exception(f'fetch_repo_loc() failed with status {request.status_code}: {request.text}')
@@ -217,13 +218,13 @@ def _fetch_history_page(owner, repo_name, cursor, data, cache_comment):
                 print(f"  fetch_repo_loc network error, retrying in {backoff}s (attempt {attempt + 1}/{max_retries}): {e}")
                 time.sleep(backoff)
                 continue
-            force_close_file(data, cache_comment)
+            force_close_file(cache)
             raise Exception(f"Error in fetch_repo_loc: {e}")
-    force_close_file(data, cache_comment)
+    force_close_file(cache)
     raise Exception("fetch_repo_loc: exhausted retries")
 
 
-def fetch_repo_loc(owner, repo_name, data, cache_comment):
+def fetch_repo_loc(owner, repo_name, cache):
     """
     Iteratively page through commit history, summing my additions/deletions/commits.
     Returns: (additions, deletions, my_commits)
@@ -233,7 +234,7 @@ def fetch_repo_loc(owner, repo_name, data, cache_comment):
     my_commits = 0
     cursor = None
     while True:
-        history = _fetch_history_page(owner, repo_name, cursor, data, cache_comment)
+        history = _fetch_history_page(owner, repo_name, cursor, cache)
         if history is None:
             return 0, 0, 0
         for node in history['edges']:
@@ -246,7 +247,7 @@ def fetch_repo_loc(owner, repo_name, data, cache_comment):
         cursor = history['pageInfo']['endCursor']
 
 
-def loc_query(owner_affiliation, comment_size=0, force_cache=False):
+def loc_query(owner_affiliation, force_cache=False):
     """
     Query all repositories to calculate lines of code statistics.
     Returns: list [additions, deletions, net, cached_status]
@@ -289,74 +290,75 @@ def loc_query(owner_affiliation, comment_size=0, force_cache=False):
             break
         cursor = repo_data['pageInfo']['endCursor']
 
-    return cache_builder(edges, comment_size, force_cache)
+    return cache_builder(edges, force_cache)
 
 
-def cache_builder(edges, comment_size, force_cache, loc_add=0, loc_del=0):
+_EMPTY_ENTRY = {"commits": 0, "my_commits": 0, "loc_add": 0, "loc_del": 0}
+
+
+def cache_builder(edges, force_cache, loc_add=0, loc_del=0):
     """Builds and maintains the cache of repository data. Returns [additions, deletions, net, cached]."""
     cached = True
     filename = get_cache_filename(USER_NAME)
+    cache = _load_cache(filename)
 
-    try:
-        with open(filename, 'r') as f:
-            file_lines = f.readlines()
-    except FileNotFoundError:
-        file_lines = ['This line is a comment block. Write whatever you want here.\n'] * comment_size
+    # Build the set of current repo hashes
+    current_hashes = {
+        hashlib.sha256(edge['node']['nameWithOwner'].encode('utf-8')).hexdigest()
+        for edge in edges
+    }
 
-    cache_comment = file_lines[:comment_size]
-    # Pad cache_comment if missing lines (e.g., new file)
-    while len(cache_comment) < comment_size:
-        cache_comment.append('This line is a comment block. Write whatever you want here.\n')
-
-    data = file_lines[comment_size:]
-
-    if len(data) != len(edges) or force_cache:
-        # Repo count changed or forced — rebuild data lines from scratch
+    if set(cache.keys()) != current_hashes or force_cache:
+        # Repo set changed or forced — preserve LOC for matching hashes, drop missing
         cached = False
-        data = []
-        for node in edges:
-            repo_hash = hashlib.sha256(node['node']['nameWithOwner'].encode('utf-8')).hexdigest()
-            data.append(f"{repo_hash} 0 0 0 0\n")
+        cache = {h: cache.get(h, dict(_EMPTY_ENTRY)) for h in current_hashes}
 
-    for index in range(len(edges)):
-        repo_hash, commit_count, *__ = data[index].split()
-        repo_name = edges[index]['node']['nameWithOwner']
-        repo_name_hash = hashlib.sha256(repo_name.encode('utf-8')).hexdigest()
+    for edge in edges:
+        node = edge['node']
+        repo_name = node['nameWithOwner']
+        repo_hash = hashlib.sha256(repo_name.encode('utf-8')).hexdigest()
+        entry = cache[repo_hash]
+        try:
+            current_commits = node['defaultBranchRef']['target']['history']['totalCount']
+            if entry['commits'] != current_commits:
+                owner, name = repo_name.split('/')
+                loc = fetch_repo_loc(owner, name, cache)
+                cache[repo_hash] = {
+                    "commits": current_commits,
+                    "my_commits": loc[2],
+                    "loc_add": loc[0],
+                    "loc_del": loc[1],
+                }
+        except TypeError:  # repo is empty
+            cache[repo_hash] = dict(_EMPTY_ENTRY)
 
-        if repo_hash == repo_name_hash:
-            try:
-                current_commit_count = edges[index]['node']['defaultBranchRef']['target']['history']['totalCount']
-                if int(commit_count) != current_commit_count:
-                    owner, repo_name = repo_name.split('/')
-                    loc = fetch_repo_loc(owner, repo_name, data, cache_comment)
-                    data[index] = f"{repo_hash} {current_commit_count} {loc[2]} {loc[0]} {loc[1]}\n"
-            except TypeError:  # repo is empty
-                data[index] = f"{repo_hash} 0 0 0 0\n"
+    _save_cache(filename, cache)
 
-    with open(filename, 'w') as f:
-        f.writelines(cache_comment)
-        f.writelines(data)
-
-    for line in data:
-        loc = line.split()
-        loc_add += int(loc[3])
-        loc_del += int(loc[4])
+    for entry in cache.values():
+        loc_add += entry['loc_add']
+        loc_del += entry['loc_del']
 
     return [loc_add, loc_del, loc_add - loc_del, cached]
 
 
 def get_cache_filename(username):
-    """
-    Generate a unique cache filename for the user
-    
-    Args:
-        username: GitHub username
-        
-    Returns:
-        str: Cache filename
-    """
+    """Cache filename for a user (JSON)."""
     os.makedirs('cache', exist_ok=True)
-    return f"cache/{hashlib.sha256(username.encode('utf-8')).hexdigest()}.txt"
+    return f"cache/{hashlib.sha256(username.encode('utf-8')).hexdigest()}.json"
+
+
+def _load_cache(filename):
+    """Load JSON cache, return dict keyed by repo hash. Empty dict if missing or invalid."""
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _save_cache(filename, cache):
+    with open(filename, 'w') as f:
+        json.dump(cache, f, indent=2, sort_keys=True)
 
 
 def add_archive():
@@ -396,54 +398,20 @@ def add_archive():
         return [0, 0, 0, 0, 0]
 
 
-def force_close_file(data, cache_comment):
-    """
-    Forces the file to close, preserving data before crash
-    
-    Args:
-        data: Cache data to save
-        cache_comment: Comment data for cache file
-    """
+def force_close_file(cache):
+    """Save the in-progress cache before raising, so a partial update isn't lost."""
     filename = get_cache_filename(USER_NAME)
     try:
-        with open(filename, 'w') as f:
-            f.writelines(cache_comment)
-            f.writelines(data)
+        _save_cache(filename, cache)
         print(f'Saved partial data to {filename} before error.')
-    except Exception as e:
+    except OSError as e:
         print(f"Error saving cache file: {e}")
 
 
-def commit_counter(comment_size):
-    """
-    Counts total commits from cache file
-    
-    Args:
-        comment_size: Number of comment lines in cache file
-        
-    Returns:
-        int: Total commit count
-    """
-    total_commits = 0
-    filename = get_cache_filename(USER_NAME)
-    
-    try:
-        with open(filename, 'r') as f:
-            data = f.readlines()
-            
-        # Skip comment lines and process data lines
-        data = data[comment_size:]
-        for line in data:
-            parts = line.split()
-            if len(parts) >= 3:
-                total_commits += int(parts[2])
-        return total_commits
-    except FileNotFoundError:
-        print(f"Warning: Cache file {filename} not found. Returning 0 commits.")
-        return 0
-    except Exception as e:
-        print(f"Error counting commits: {e}")
-        return 0
+def commit_counter():
+    """Sum my_commits across all cached repos."""
+    cache = _load_cache(get_cache_filename(USER_NAME))
+    return sum(entry.get('my_commits', 0) for entry in cache.values())
 
 
 def user_getter(username):
@@ -791,14 +759,14 @@ def main():
     formatter('age calculation', age_time)
 
     # Get lines of code statistics
-    total_loc, loc_time = perf_counter(loc_query, ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'], 7)
+    total_loc, loc_time = perf_counter(loc_query, ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'])
     if total_loc[-1]:
         formatter('LOC (cached)', loc_time)
     else:
         formatter('LOC (no cache)', loc_time)
 
     # Get other GitHub statistics
-    commit_data, commit_time = perf_counter(commit_counter, 7)
+    commit_data, commit_time = perf_counter(commit_counter)
     (repo_data, star_data), repo_star_time = perf_counter(graph_repos_stars, 'both', ['OWNER'])
     contrib_data, contrib_time = perf_counter(graph_repos_stars, 'repos', ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'])
     follower_data, follower_time = perf_counter(follower_getter, USER_NAME)
