@@ -126,7 +126,7 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
             defaultBranchRef {
                 target {
                     ... on Commit {
-                        history(first: 100, after: $cursor) {
+                        history(first: 50, after: $cursor) {
                             totalCount
                             edges {
                                 node {
