@@ -280,7 +280,11 @@ def cache_builder(edges, force_cache, loc_add=0, loc_del=0):
             current_commits = node['defaultBranchRef']['target']['history']['totalCount']
             if entry['commits'] != current_commits:
                 owner, name = repo_name.split('/')
-                loc = fetch_repo_loc(owner, name, cache)
+                try:
+                    loc = fetch_repo_loc(owner, name, cache)
+                except GitHubAPIError as e:
+                    print(f"  WARN: keeping cached LOC for {repo_name} ({e})")
+                    continue
                 cache[repo_hash] = {
                     "commits": current_commits,
                     "my_commits": loc[2],
