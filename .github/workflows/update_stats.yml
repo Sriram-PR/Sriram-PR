@@ -42,6 +42,7 @@ jobs:
       
       - name: Commit if changed
         id: commit
+        if: always()
         run: |
           git config --global user.email "github-actions-bot@sriram-pr.github.io"
           git config --global user.name "Sriram-PR/GitHub-Actions-Bot"
@@ -55,5 +56,5 @@ jobs:
           fi
 
       - name: Push
-        if: steps.commit.outputs.changed == 'true'
+        if: always() && steps.commit.outputs.changed == 'true'
         run: git push
