@@ -155,6 +155,7 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
     variables = {'repo_name': repo_name, 'owner': owner, 'cursor': cursor}
     max_retries = 8
     max_backoff = 30
+    repo_ref = f"{owner}/{repo_name}" + (f"@{cursor[:12]}..." if cursor else "")
     for attempt in range(max_retries):
         try:
             query_count('fetch_repo_loc')
@@ -167,24 +168,24 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
 
             if 500 <= request.status_code < 600 and attempt < max_retries - 1:
                 backoff = min(max_backoff, 2 ** attempt)
-                print(f"  fetch_repo_loc got {request.status_code}, retrying in {backoff}s (attempt {attempt + 1}/{max_retries})")
+                print(f"  fetch_repo_loc[{repo_ref}] got {request.status_code}, retrying in {backoff}s (attempt {attempt + 1}/{max_retries})")
                 time.sleep(backoff)
                 continue
 
             force_close_file(cache)
             if request.status_code == 403:
-                raise RateLimitError("fetch_repo_loc hit anti-abuse rate limit")
-            raise GitHubAPIError(f'fetch_repo_loc failed with status {request.status_code}: {request.text}')
+                raise RateLimitError(f"fetch_repo_loc[{repo_ref}] hit anti-abuse rate limit")
+            raise GitHubAPIError(f'fetch_repo_loc[{repo_ref}] failed with status {request.status_code}: {request.text}')
         except requests.exceptions.RequestException as e:
             if attempt < max_retries - 1:
                 backoff = min(max_backoff, 2 ** attempt)
-                print(f"  fetch_repo_loc network error, retrying in {backoff}s (attempt {attempt + 1}/{max_retries}): {e}")
+                print(f"  fetch_repo_loc[{repo_ref}] network error, retrying in {backoff}s (attempt {attempt + 1}/{max_retries}): {e}")
                 time.sleep(backoff)
                 continue
             force_close_file(cache)
-            raise GitHubAPIError(f"fetch_repo_loc network error: {e}") from e
+            raise GitHubAPIError(f"fetch_repo_loc[{repo_ref}] network error: {e}") from e
     force_close_file(cache)
-    raise GitHubAPIError("fetch_repo_loc: exhausted retries")
+    raise GitHubAPIError(f"fetch_repo_loc[{repo_ref}]: exhausted retries")
 
 
 def fetch_repo_loc(owner, repo_name, cache):
