@@ -153,7 +153,8 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
         }
     }'''
     variables = {'repo_name': repo_name, 'owner': owner, 'cursor': cursor}
-    max_retries = 5
+    max_retries = 8
+    max_backoff = 30
     for attempt in range(max_retries):
         try:
             query_count('fetch_repo_loc')
@@ -165,7 +166,7 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
                 return branch_ref['target']['history'] if branch_ref else None
 
             if 500 <= request.status_code < 600 and attempt < max_retries - 1:
-                backoff = 2 ** attempt
+                backoff = min(max_backoff, 2 ** attempt)
                 print(f"  fetch_repo_loc got {request.status_code}, retrying in {backoff}s (attempt {attempt + 1}/{max_retries})")
                 time.sleep(backoff)
                 continue
@@ -176,7 +177,7 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
             raise GitHubAPIError(f'fetch_repo_loc failed with status {request.status_code}: {request.text}')
         except requests.exceptions.RequestException as e:
             if attempt < max_retries - 1:
-                backoff = 2 ** attempt
+                backoff = min(max_backoff, 2 ** attempt)
                 print(f"  fetch_repo_loc network error, retrying in {backoff}s (attempt {attempt + 1}/{max_retries}): {e}")
                 time.sleep(backoff)
                 continue
