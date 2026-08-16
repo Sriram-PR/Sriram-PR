@@ -208,7 +208,7 @@ def fetch_repo_loc(owner, repo_name, cache):
         cursor = history['pageInfo']['endCursor']
 
 
-def loc_query(owner_affiliation, force_cache=False):
+def loc_query(owner_affiliation, force_cache=False, exclude_repos=None):
     """Query repositories and compute LOC stats. Returns [additions, deletions, net, cached_status]."""
     query = '''
     query ($owner_affiliation: [RepositoryAffiliation], $login: String!, $cursor: String) {
@@ -247,6 +247,10 @@ def loc_query(owner_affiliation, force_cache=False):
         if not repo_data['pageInfo']['hasNextPage']:
             break
         cursor = repo_data['pageInfo']['endCursor']
+
+    if exclude_repos:
+        exclude_set = {r.lower() for r in exclude_repos}
+        edges = [e for e in edges if e['node']['nameWithOwner'].lower() not in exclude_set]
 
     return cache_builder(edges, force_cache)
 
@@ -625,7 +629,8 @@ def main():
     age_data, age_time = perf_counter(daily_readme, config['profile']['birthday'])
     formatter('age calculation', age_time)
 
-    total_loc, loc_time = perf_counter(loc_query, ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'])
+    exclude_repos = config['layout'].get('exclude_repos', [])
+    total_loc, loc_time = perf_counter(loc_query, ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'], False, exclude_repos)
     if total_loc[-1]:
         formatter('LOC (cached)', loc_time)
     else:
