@@ -115,7 +115,7 @@ def graph_repos_stars(count_type, owner_affiliation):
 
 def stars_counter(data):
     """Sum stargazers totalCount across all repository edges."""
-    return sum(node['node']['stargazers']['totalCount'] for node in data)
+    return sum(node['node']['stargazers']['totalCount'] for node in data if node.get('node'))
 
 
 def _fetch_history_page(owner, repo_name, cursor, cache):
