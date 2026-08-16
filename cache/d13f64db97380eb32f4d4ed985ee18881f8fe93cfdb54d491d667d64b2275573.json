@@ -5,12 +5,6 @@
     "loc_del": 4794,
     "my_commits": 24
   },
-  "09cd8dd10a3c658e13dfb13b76a45c26567fdbf140846dc4bf5bc0471abfdaa6": {
-    "commits": 96,
-    "loc_add": 12787406,
-    "loc_del": 2763521,
-    "my_commits": 96
-  },
   "1094684d1096f854234ae09ebd76fed9caa1c87eefb2f3e49878d90e628545b4": {
     "commits": 52,
     "loc_add": 8461,
@@ -34,12 +28,6 @@
     "loc_add": 2475,
     "loc_del": 494,
     "my_commits": 3
-  },
-  "34fa7b92d675d753234df28c0b0521870c0ea77627bf1757865dde590c67fa4a": {
-    "commits": 19,
-    "loc_add": 786627,
-    "loc_del": 1272,
-    "my_commits": 19
   },
   "3f5897c17b4d2a947dda3e9a19be79778a220e4ece136a15a1b6ed4fbc651273": {
     "commits": 228,
@@ -84,10 +72,10 @@
     "my_commits": 14
   },
   "778929aa2153479f9445135e766ebbd7441b0d3f3fa8295f6a9eba0d79040518": {
-    "commits": 768,
-    "loc_add": 2355,
-    "loc_del": 1439,
-    "my_commits": 151
+    "commits": 770,
+    "loc_add": 2356,
+    "loc_del": 1440,
+    "my_commits": 152
   },
   "87d033bfe39a81dad799d959151e8a61bfc292a30efede8a6c57e085e36aee2c": {
     "commits": 6,
