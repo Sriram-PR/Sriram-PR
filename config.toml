@@ -27,4 +27,4 @@ LinkedIn = "sriram-periannan"
 
 [layout]
 target_width = 60
-exclude_repos = []
+exclude_repos = ["Sriram-PR/magic-survival-re", "Sriram-PR/data-mining-magic-survival", ]
