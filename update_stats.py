@@ -50,25 +50,34 @@ def daily_readme(birthday):
     return f"{diff.years} year{plural(diff.years)}, {diff.months} month{plural(diff.months)}, {diff.days} day{plural(diff.days)}{cake}"
 
 
-def simple_request(func_name, query, variables):
-    """Send a GraphQL request. Returns parsed JSON dict. Raises GitHubAPIError/RateLimitError."""
+def simple_request(func_name, query, variables, max_retries=3):
+    """Send a GraphQL request with retry on transient errors. Returns parsed JSON dict."""
     query_count(func_name)
-    try:
-        request = SESSION.post('https://api.github.com/graphql',
-                               json={'query': query, 'variables': variables},
-                               timeout=30)
-    except requests.RequestException as e:
-        raise GitHubAPIError(f"{func_name} request failed: {e}") from e
+    for attempt in range(max_retries):
+        try:
+            request = SESSION.post('https://api.github.com/graphql',
+                                   json={'query': query, 'variables': variables},
+                                   timeout=30)
+        except requests.RequestException as e:
+            if attempt < max_retries - 1:
+                time.sleep(min(10, 2 ** attempt))
+                continue
+            raise GitHubAPIError(f"{func_name} request failed: {e}") from e
 
-    if request.status_code == 200:
-        data = request.json()
-        if 'errors' in data:
-            msgs = '; '.join(e.get('message', '?') for e in data['errors'])
-            raise GitHubAPIError(f"{func_name} GraphQL errors: {msgs}")
-        return data
-    if request.status_code == 403:
-        raise RateLimitError(f"{func_name} hit rate limit: {request.text}")
-    raise GitHubAPIError(f"{func_name} failed with status {request.status_code}: {request.text}")
+        if request.status_code == 200:
+            data = request.json()
+            if 'errors' in data:
+                msgs = '; '.join(e.get('message', '?') for e in data['errors'])
+                raise GitHubAPIError(f"{func_name} GraphQL errors: {msgs}")
+            return data
+        if request.status_code == 403:
+            raise RateLimitError(f"{func_name} hit rate limit: {request.text}")
+        if 500 <= request.status_code < 600 and attempt < max_retries - 1:
+            print(f"  {func_name} got {request.status_code}, retrying in {2 ** attempt}s")
+            time.sleep(min(10, 2 ** attempt))
+            continue
+        raise GitHubAPIError(f"{func_name} failed with status {request.status_code}: {request.text}")
+    raise GitHubAPIError(f"{func_name}: exhausted retries")
 
 
 def graph_repos_stars(count_type, owner_affiliation):
