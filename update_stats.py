@@ -51,7 +51,7 @@ def daily_readme(birthday):
 
 
 def simple_request(func_name, query, variables):
-    """Send a GraphQL request. Raises GitHubAPIError on non-200, RateLimitError on 403."""
+    """Send a GraphQL request. Returns parsed JSON dict. Raises GitHubAPIError/RateLimitError."""
     query_count(func_name)
     try:
         request = SESSION.post('https://api.github.com/graphql',
@@ -61,7 +61,11 @@ def simple_request(func_name, query, variables):
         raise GitHubAPIError(f"{func_name} request failed: {e}") from e
 
     if request.status_code == 200:
-        return request
+        data = request.json()
+        if 'errors' in data:
+            msgs = '; '.join(e.get('message', '?') for e in data['errors'])
+            raise GitHubAPIError(f"{func_name} GraphQL errors: {msgs}")
+        return data
     if request.status_code == 403:
         raise RateLimitError(f"{func_name} hit rate limit: {request.text}")
     raise GitHubAPIError(f"{func_name} failed with status {request.status_code}: {request.text}")
@@ -90,7 +94,7 @@ def graph_repos_stars(count_type, owner_affiliation):
     total_count = 0
     while True:
         variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME, 'cursor': cursor}
-        repos = simple_request('graph_repos_stars', query, variables).json()['data']['user']['repositories']
+        repos = simple_request('graph_repos_stars', query, variables)['data']['user']['repositories']
         total_count = repos['totalCount']
 
         if count_type == 'repos':
@@ -232,7 +236,7 @@ def loc_query(owner_affiliation, force_cache=False, exclude_repos=None):
     cursor = None
     while True:
         variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME, 'cursor': cursor}
-        repo_data = simple_request('loc_query', query, variables).json()['data']['user']['repositories']
+        repo_data = simple_request('loc_query', query, variables)['data']['user']['repositories']
         edges += repo_data['edges']
         if not repo_data['pageInfo']['hasNextPage']:
             break
@@ -343,8 +347,8 @@ def user_getter(username):
         }
     }'''
     variables = {'login': username}
-    request = simple_request('user_getter', query, variables)
-    return {'id': request.json()['data']['user']['id']}
+    data = simple_request('user_getter', query, variables)
+    return {'id': data['data']['user']['id']}
 
 
 def follower_getter(username):
@@ -358,8 +362,8 @@ def follower_getter(username):
         }
     }'''
     variables = {'login': username}
-    request = simple_request('follower_getter', query, variables)
-    return int(request.json()['data']['user']['followers']['totalCount'])
+    data = simple_request('follower_getter', query, variables)
+    return int(data['data']['user']['followers']['totalCount'])
 
 
 def query_count(funct_id):
