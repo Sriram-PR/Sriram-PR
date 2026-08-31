@@ -270,23 +270,24 @@ def cache_builder(edges, force_cache, loc_add=0, loc_del=0):
         repo_name = node['nameWithOwner']
         repo_hash = hashlib.sha256(repo_name.encode('utf-8')).hexdigest()
         entry = cache[repo_hash]
-        try:
-            current_commits = node['defaultBranchRef']['target']['history']['totalCount']
-            if entry['commits'] != current_commits:
-                owner, name = repo_name.split('/')
-                try:
-                    loc = fetch_repo_loc(owner, name, cache)
-                except GitHubAPIError as e:
-                    print(f"  WARN: keeping cached LOC for {repo_name} ({e})")
-                    continue
-                cache[repo_hash] = {
-                    "commits": current_commits,
-                    "my_commits": loc[2],
-                    "loc_add": loc[0],
-                    "loc_del": loc[1],
-                }
-        except TypeError:  # repo is empty
+        branch_ref = node['defaultBranchRef']
+        if branch_ref is None:
             cache[repo_hash] = dict(_EMPTY_ENTRY)
+            continue
+        current_commits = branch_ref['target']['history']['totalCount']
+        if entry['commits'] != current_commits:
+            owner, name = repo_name.split('/')
+            try:
+                loc = fetch_repo_loc(owner, name, cache)
+            except GitHubAPIError as e:
+                print(f"  WARN: keeping cached LOC for {repo_name} ({e})")
+                continue
+            cache[repo_hash] = {
+                "commits": current_commits,
+                "my_commits": loc[2],
+                "loc_add": loc[0],
+                "loc_del": loc[1],
+            }
 
     _save_cache(filename, cache)
 
