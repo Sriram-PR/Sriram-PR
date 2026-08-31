@@ -74,15 +74,8 @@ def graph_repos_stars(count_type, owner_affiliation):
         user(login: $login) {
             repositories(first: 100, after: $cursor, ownerAffiliations: $owner_affiliation) {
                 totalCount
-                edges {
-                    node {
-                        ... on Repository {
-                            nameWithOwner
-                            stargazers {
-                                totalCount
-                            }
-                        }
-                    }
+                nodes {
+                    stargazerCount
                 }
                 pageInfo {
                     endCursor
@@ -103,7 +96,9 @@ def graph_repos_stars(count_type, owner_affiliation):
         if count_type == 'repos':
             return total_count
 
-        total_stars += stars_counter(repos['edges'])
+        for node in repos['nodes']:
+            if node:
+                total_stars += node['stargazerCount']
         if not repos['pageInfo']['hasNextPage']:
             break
         cursor = repos['pageInfo']['endCursor']
@@ -111,11 +106,6 @@ def graph_repos_stars(count_type, owner_affiliation):
     if count_type == 'stars':
         return total_stars
     return (total_count, total_stars)
-
-
-def stars_counter(data):
-    """Sum stargazers totalCount across all repository edges."""
-    return sum(node['node']['stargazers']['totalCount'] for node in data if node.get('node'))
 
 
 def _fetch_history_page(owner, repo_name, cursor, cache):
