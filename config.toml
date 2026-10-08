@@ -13,7 +13,6 @@ IDE = "VSCode 1.140.0"
 [languages]
 Programming = "Python, Go, Java, JavaScript"
 Computer = "SQL, JSON, LaTeX"
-Real = "English, Tamil"
 
 [hobbies]
 Software = "Web Dev, AI/ML"
