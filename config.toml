@@ -7,7 +7,7 @@ birthday = 2005-02-14
 OS = "Fedora 44, Android 16"
 Host = "RMIT University, Melbourne"
 Kernel = "Master of AI"
-IDE = "VSCode 1.102.0"
+IDE = "VSCode 1.140.0"
 
 [languages]
 Programming = "Python, Go, Java, JavaScript"
