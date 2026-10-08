@@ -285,6 +285,7 @@ def cache_builder(edges, force_cache, loc_add=0, loc_del=0):
         cache = {h: cache.get(h, dict(_EMPTY_ENTRY)) for h in current_hashes}
 
     deadline = time.monotonic() + LOC_TIME_BUDGET
+    rate_limited = False
     for edge in edges:
         node = edge['node']
         repo_name = node['nameWithOwner']
@@ -296,14 +297,21 @@ def cache_builder(edges, force_cache, loc_add=0, loc_del=0):
             continue
         current_commits = branch_ref['target']['history']['totalCount']
         if entry['commits'] != current_commits:
-            # Out of time: keep stale entry so the next run retries it, and still commit progress
-            if time.monotonic() > deadline:
-                print(f"  WARN: LOC time budget spent, deferring {repo_name}")
+            # Out of time or rate limited: keep stale entry so the next run retries it, and still commit progress
+            if rate_limited or time.monotonic() > deadline:
+                reason = 'rate limited' if rate_limited else 'LOC time budget spent'
+                print(f"  WARN: {reason}, deferring {repo_name}")
                 cached = False
                 continue
             owner, name = repo_name.split('/')
             try:
                 loc = fetch_repo_loc(owner, name, cache)
+            except RateLimitError as e:
+                # More requests would only extend the block
+                print(f"  WARN: keeping cached LOC for {repo_name} ({e})")
+                rate_limited = True
+                cached = False
+                continue
             except GitHubAPIError as e:
                 print(f"  WARN: keeping cached LOC for {repo_name} ({e})")
                 continue
