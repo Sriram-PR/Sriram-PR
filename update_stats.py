@@ -17,9 +17,10 @@ except ImportError as e:
     print("Please install required packages: pip install requests lxml python-dateutil")
     sys.exit(1)
 
-# Fine-grained personal access token with All Repositories access:
-# Account permissions: read:Followers, read:Starring, read:Watching
-# Repository permissions: read:Commit statuses, read:Contents, read:Issues, read:Metadata, read:Pull Requests
+# Fine-grained personal access token, resource owner = USER_NAME, All repositories:
+# Repository permissions: Contents (read), Metadata (read). No account permissions needed.
+# Fine-grained tokens can't see repos owned by other users/orgs, so Contrib and LOC
+# cover only your own repos; use a classic token (repo, read:user) to include those.
 if 'ACCESS_TOKEN' not in os.environ or not os.environ['ACCESS_TOKEN']:
     raise ValueError("GitHub ACCESS_TOKEN environment variable must be set")
 if 'USER_NAME' not in os.environ or not os.environ['USER_NAME']:
