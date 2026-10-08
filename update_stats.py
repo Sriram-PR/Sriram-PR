@@ -70,9 +70,12 @@ def simple_request(func_name, query, variables, max_retries=3):
 
         if request.status_code == 200:
             data = request.json()
-            if 'errors' in data:
+            if data.get('errors'):
                 msgs = '; '.join(e.get('message', '?') for e in data['errors'])
-                raise GitHubAPIError(f"{func_name} GraphQL errors: {msgs}")
+                # Partial data (e.g. one inaccessible repo in a list) is still usable
+                if not data.get('data'):
+                    raise GitHubAPIError(f"{func_name} GraphQL errors: {msgs}")
+                print(f"  WARN: {func_name} partial GraphQL errors: {msgs}")
             return data
         if request.status_code == 403:
             raise RateLimitError(f"{func_name} hit rate limit: {request.text}")
@@ -82,6 +85,14 @@ def simple_request(func_name, query, variables, max_retries=3):
             continue
         raise GitHubAPIError(f"{func_name} failed with status {request.status_code}: {request.text}")
     raise GitHubAPIError(f"{func_name}: exhausted retries")
+
+
+def user_request(func_name, query, variables):
+    """simple_request for user(...) queries; returns the user object or raises if it came back null."""
+    user = simple_request(func_name, query, variables)['data'].get('user')
+    if user is None:
+        raise GitHubAPIError(f"{func_name}: user {variables.get('login')!r} not returned")
+    return user
 
 
 def graph_repos_stars(count_type, owner_affiliation):
@@ -107,7 +118,7 @@ def graph_repos_stars(count_type, owner_affiliation):
     total_count = 0
     while True:
         variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME, 'cursor': cursor}
-        repos = simple_request('graph_repos_stars', query, variables)['data']['user']['repositories']
+        repos = user_request('graph_repos_stars', query, variables)['repositories']
         total_count = repos['totalCount']
 
         if count_type == 'repos':
@@ -251,8 +262,8 @@ def loc_query(owner_affiliation, force_cache=False, exclude_repos=None):
     cursor = None
     while True:
         variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME, 'cursor': cursor}
-        repo_data = simple_request('loc_query', query, variables)['data']['user']['repositories']
-        edges += repo_data['edges']
+        repo_data = user_request('loc_query', query, variables)['repositories']
+        edges += [e for e in repo_data['edges'] if e and e.get('node')]
         if not repo_data['pageInfo']['hasNextPage']:
             break
         cursor = repo_data['pageInfo']['endCursor']
@@ -376,8 +387,8 @@ def user_getter(username):
         }
     }'''
     variables = {'login': username}
-    data = simple_request('user_getter', query, variables)
-    return {'id': data['data']['user']['id']}
+    data = user_request('user_getter', query, variables)
+    return {'id': data['id']}
 
 
 def follower_getter(username):
@@ -391,8 +402,8 @@ def follower_getter(username):
         }
     }'''
     variables = {'login': username}
-    data = simple_request('follower_getter', query, variables)
-    return int(data['data']['user']['followers']['totalCount'])
+    data = user_request('follower_getter', query, variables)
+    return int(data['followers']['totalCount'])
 
 
 def query_count(funct_id):
