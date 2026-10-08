@@ -136,7 +136,7 @@ def graph_repos_stars(count_type, owner_affiliation):
     return (total_count, total_stars)
 
 
-def _fetch_history_page(owner, repo_name, cursor, cache):
+def _fetch_history_page(owner, repo_name, cursor):
     """Fetch one page of my commits on the default branch, with 5xx retry. Returns history dict or None (no default branch)."""
     # Filtering by author server-side keeps forks of large upstreams to ~1 request
     query = '''
@@ -193,7 +193,6 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
                 time.sleep(backoff)
                 continue
 
-            force_close_file(cache)
             if request.status_code == 403:
                 raise RateLimitError(f"fetch_repo_loc[{repo_ref}] hit anti-abuse rate limit")
             raise GitHubAPIError(f'fetch_repo_loc[{repo_ref}] failed with status {request.status_code}: {request.text}')
@@ -203,20 +202,18 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
                 print(f"  fetch_repo_loc[{repo_ref}] network error, retrying in {backoff}s (attempt {attempt + 1}/{max_retries}): {e}")
                 time.sleep(backoff)
                 continue
-            force_close_file(cache)
             raise GitHubAPIError(f"fetch_repo_loc[{repo_ref}] network error: {e}") from e
-    force_close_file(cache)
     raise GitHubAPIError(f"fetch_repo_loc[{repo_ref}]: exhausted retries")
 
 
-def fetch_repo_loc(owner, repo_name, cache):
+def fetch_repo_loc(owner, repo_name):
     """Page through commit history, summing my additions/deletions/commits. Returns (add, del, my_commits)."""
     addition_total = 0
     deletion_total = 0
     my_commits = 0
     cursor = None
     while True:
-        history = _fetch_history_page(owner, repo_name, cursor, cache)
+        history = _fetch_history_page(owner, repo_name, cursor)
         if history is None:
             return 0, 0, 0
         for edge in history['edges']:
@@ -316,7 +313,7 @@ def cache_builder(edges, force_cache, loc_add=0, loc_del=0):
                 continue
             owner, name = repo_name.split('/')
             try:
-                loc = fetch_repo_loc(owner, name, cache)
+                loc = fetch_repo_loc(owner, name)
             except RateLimitError as e:
                 # More requests would only extend the block
                 print(f"  WARN: keeping cached LOC for {repo_name} ({e})")
@@ -360,16 +357,6 @@ def _load_cache(filename):
 def _save_cache(filename, cache):
     with open(filename, 'w') as f:
         json.dump(cache, f, indent=2, sort_keys=True)
-
-
-def force_close_file(cache):
-    """Save the in-progress cache before raising, so a partial update isn't lost."""
-    filename = get_cache_filename(USER_NAME)
-    try:
-        _save_cache(filename, cache)
-        print(f'Saved partial data to {filename} before error.')
-    except OSError as e:
-        print(f"Error saving cache file: {e}")
 
 
 def commit_counter():
