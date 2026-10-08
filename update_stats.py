@@ -160,8 +160,18 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
                                    json={'query': query, 'variables': variables},
                                    timeout=30)
             if request.status_code == 200:
-                branch_ref = request.json()['data']['repository']['defaultBranchRef']
-                return branch_ref['target']['history'] if branch_ref else None
+                data = request.json()
+                # Expensive diffs can come back as partial data: errors plus null commit nodes
+                if data.get('errors'):
+                    msgs = '; '.join(e.get('message', '?') for e in data['errors'])
+                    raise GitHubAPIError(f"fetch_repo_loc[{repo_ref}] GraphQL errors: {msgs}")
+                branch_ref = data['data']['repository']['defaultBranchRef']
+                if not branch_ref:
+                    return None
+                history = branch_ref['target']['history']
+                if any(edge['node'] is None for edge in history['edges']):
+                    raise GitHubAPIError(f"fetch_repo_loc[{repo_ref}] returned null commit nodes")
+                return history
 
             if 500 <= request.status_code < 600 and attempt < max_retries - 1:
                 backoff = min(max_backoff, 2 ** attempt)
