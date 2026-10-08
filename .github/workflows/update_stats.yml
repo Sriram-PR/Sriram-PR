@@ -4,7 +4,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: "30 18 * * *"  # Run daily at 6:30 PM UTC
+    - cron: "7 13 * * *"  # Daily at 13:07 UTC (00:07 AEDT, 23:07 AEST)
   workflow_dispatch:     # Allow manual triggering
 
 # Prevent multiple workflow runs executing at the same time
