@@ -54,6 +54,13 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # main may have moved during the run (e.g. a manual push); rebase onto it before pushing
       - name: Push
         if: steps.commit.outputs.changed == 'true'
-        run: git push
+        run: |
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push && exit 0
+            echo "Push attempt $attempt failed, retrying"
+            sleep 5
+          done
+          exit 1
