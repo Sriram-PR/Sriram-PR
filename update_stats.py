@@ -150,8 +150,8 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
         }
     }'''
     variables = {'repo_name': repo_name, 'owner': owner, 'cursor': cursor, 'author_id': OWNER_ID['id']}
-    max_retries = 8
-    max_backoff = 30
+    max_retries = 4
+    max_backoff = 10
     repo_ref = f"{owner}/{repo_name}" + (f"@{cursor[:12]}..." if cursor else "")
     for attempt in range(max_retries):
         try:
