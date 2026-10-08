@@ -31,6 +31,7 @@ SESSION.headers.update({'authorization': 'token ' + os.environ['ACCESS_TOKEN']})
 QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0,
                'fetch_repo_loc': 0, 'loc_query': 0}
 OWNER_ID = None
+LOC_TIME_BUDGET = 300  # seconds; must stay well under the workflow timeout
 
 
 class GitHubAPIError(Exception):
@@ -270,6 +271,7 @@ def cache_builder(edges, force_cache, loc_add=0, loc_del=0):
         cached = False
         cache = {h: cache.get(h, dict(_EMPTY_ENTRY)) for h in current_hashes}
 
+    deadline = time.monotonic() + LOC_TIME_BUDGET
     for edge in edges:
         node = edge['node']
         repo_name = node['nameWithOwner']
@@ -281,6 +283,11 @@ def cache_builder(edges, force_cache, loc_add=0, loc_del=0):
             continue
         current_commits = branch_ref['target']['history']['totalCount']
         if entry['commits'] != current_commits:
+            # Out of time: keep stale entry so the next run retries it, and still commit progress
+            if time.monotonic() > deadline:
+                print(f"  WARN: LOC time budget spent, deferring {repo_name}")
+                cached = False
+                continue
             owner, name = repo_name.split('/')
             try:
                 loc = fetch_repo_loc(owner, name, cache)
