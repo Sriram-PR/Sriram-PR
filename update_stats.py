@@ -6,6 +6,7 @@ import sys
 import time
 import hashlib
 import tomllib
+import zoneinfo
 import requests
 
 try:
@@ -42,9 +43,11 @@ class RateLimitError(GitHubAPIError):
     """Hit GitHub's documented or undocumented rate limit."""
 
 
-def daily_readme(birthday):
-    """Returns 'XX years, XX months, XX days' since birthday."""
-    diff = relativedelta.relativedelta(datetime.datetime.today(), birthday)
+def daily_readme(birthday, tz_name='UTC'):
+    """Returns 'XX years, XX months, XX days' since birthday, as of today in tz_name."""
+    # Runner clock is UTC; use the profile's local date so the counter rolls over at local midnight
+    today = datetime.datetime.now(zoneinfo.ZoneInfo(tz_name)).replace(tzinfo=None)
+    diff = relativedelta.relativedelta(today, birthday)
     def plural(n):
         return 's' if n != 1 else ''
     cake = ' 🎂' if (diff.months == 0 and diff.days == 0) else ''
@@ -639,7 +642,8 @@ def main():
     OWNER_ID, user_time = perf_counter(user_getter, USER_NAME)
     formatter('account data', user_time)
 
-    age_data, age_time = perf_counter(daily_readme, config['profile']['birthday'])
+    age_data, age_time = perf_counter(daily_readme, config['profile']['birthday'],
+                                      config['profile'].get('timezone', 'UTC'))
     formatter('age calculation', age_time)
 
     exclude_repos = config['layout'].get('exclude_repos', [])
