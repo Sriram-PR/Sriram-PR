@@ -122,25 +122,18 @@ def graph_repos_stars(count_type, owner_affiliation):
 
 
 def _fetch_history_page(owner, repo_name, cursor, cache):
-    """Fetch one page of commit history with 5xx retry. Returns history dict or None (no default branch)."""
+    """Fetch one page of my commits on the default branch, with 5xx retry. Returns history dict or None (no default branch)."""
+    # Filtering by author server-side keeps forks of large upstreams to ~1 request
     query = '''
-    query ($repo_name: String!, $owner: String!, $cursor: String) {
+    query ($repo_name: String!, $owner: String!, $cursor: String, $author_id: ID!) {
         repository(name: $repo_name, owner: $owner) {
             defaultBranchRef {
                 target {
                     ... on Commit {
-                        history(first: 50, after: $cursor) {
+                        history(first: 50, after: $cursor, author: {id: $author_id}) {
                             totalCount
                             edges {
                                 node {
-                                    ... on Commit {
-                                        committedDate
-                                    }
-                                    author {
-                                        user {
-                                            id
-                                        }
-                                    }
                                     deletions
                                     additions
                                 }
@@ -155,7 +148,7 @@ def _fetch_history_page(owner, repo_name, cursor, cache):
             }
         }
     }'''
-    variables = {'repo_name': repo_name, 'owner': owner, 'cursor': cursor}
+    variables = {'repo_name': repo_name, 'owner': owner, 'cursor': cursor, 'author_id': OWNER_ID['id']}
     max_retries = 8
     max_backoff = 30
     repo_ref = f"{owner}/{repo_name}" + (f"@{cursor[:12]}..." if cursor else "")
@@ -201,11 +194,10 @@ def fetch_repo_loc(owner, repo_name, cache):
         history = _fetch_history_page(owner, repo_name, cursor, cache)
         if history is None:
             return 0, 0, 0
-        for node in history['edges']:
-            if node['node']['author']['user'] == OWNER_ID:
-                my_commits += 1
-                addition_total += node['node']['additions']
-                deletion_total += node['node']['deletions']
+        for edge in history['edges']:
+            my_commits += 1
+            addition_total += edge['node']['additions']
+            deletion_total += edge['node']['deletions']
         if not history['edges'] or not history['pageInfo']['hasNextPage']:
             return addition_total, deletion_total, my_commits
         cursor = history['pageInfo']['endCursor']
