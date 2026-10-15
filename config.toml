@@ -27,4 +27,5 @@ LinkedIn = "sriram-periannan"
 
 [layout]
 target_width = 60
-exclude_repos = ["Sriram-PR/magic-survival-re", "Sriram-PR/data-mining-magic-survival", ]
+exclude_oss_repos = ["avelino/awesome-go", "punkpeye/awesome-mcp-servers"]
+exclude_repos =["Sriram-PR/magic-survival-re", "Sriram-PR/data-mining-magic-survival", ]

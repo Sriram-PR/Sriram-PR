@@ -19,8 +19,8 @@ except ImportError as e:
 
 # Fine-grained personal access token, resource owner = USER_NAME, All repositories:
 # Repository permissions: Contents (read), Metadata (read). No account permissions needed.
-# Fine-grained tokens can't see repos owned by other users/orgs, so Contrib and LOC
-# cover only your own repos; use a classic token (repo, read:user) to include those.
+# Fine-grained tokens can't see repos owned by other users/orgs, so LOC
+# covers only your own repos; use a classic token (repo, read:user) to include those.
 if 'ACCESS_TOKEN' not in os.environ or not os.environ['ACCESS_TOKEN']:
     raise ValueError("GitHub ACCESS_TOKEN environment variable must be set")
 if 'USER_NAME' not in os.environ or not os.environ['USER_NAME']:
@@ -31,7 +31,7 @@ USER_NAME = os.environ['USER_NAME']
 SESSION = requests.Session()
 SESSION.headers.update({'authorization': 'token ' + os.environ['ACCESS_TOKEN']})
 QUERY_COUNT = {'user_getter': 0, 'follower_getter': 0, 'graph_repos_stars': 0,
-               'fetch_repo_loc': 0, 'loc_query': 0}
+               'fetch_repo_loc': 0, 'loc_query': 0, 'oss_prs': 0}
 OWNER_ID = None
 LOC_TIME_BUDGET = 300  # seconds; must stay well under the workflow timeout
 
@@ -394,6 +394,45 @@ def follower_getter(username):
     return int(data['followers']['totalCount'])
 
 
+def oss_prs(exclude_repos=None):
+    """Count my merged PRs in repos I don't own. Returns (merged_prs, distinct_repos)."""
+    query = '''
+    query ($q: String!, $cursor: String) {
+        search(query: $q, type: ISSUE, first: 100, after: $cursor) {
+            nodes {
+                ... on PullRequest {
+                    repository {
+                        nameWithOwner
+                    }
+                }
+            }
+            pageInfo {
+                endCursor
+                hasNextPage
+            }
+        }
+    }'''
+    exclude_set = {r.lower() for r in exclude_repos or []}
+    search = f"author:{USER_NAME} type:pr is:merged -user:{USER_NAME}"
+    prs = 0
+    repos = set()
+    cursor = None
+    while True:
+        result = simple_request('oss_prs', query, {'q': search, 'cursor': cursor})['data']['search']
+        for node in result['nodes']:
+            # Null nodes are PRs in repos the token can't read
+            if not node:
+                continue
+            name = node['repository']['nameWithOwner']
+            if name.lower() in exclude_set:
+                continue
+            prs += 1
+            repos.add(name)
+        if not result['pageInfo']['hasNextPage']:
+            return prs, len(repos)
+        cursor = result['pageInfo']['endCursor']
+
+
 def query_count(funct_id):
     """Increment the API call counter for a given function id."""
     QUERY_COUNT[funct_id] += 1
@@ -543,17 +582,16 @@ def build_data_tspans(config, api_data):
 
     # Repos & Stars / Commits & Followers — compute pipe column so '|' aligns
     repo_val = fmt(api_data['repos'])
-    contrib_val = fmt(api_data['contribs'])
     star_val = fmt(api_data['stars'])
     commit_val = fmt(api_data['commits'])
     follower_val = fmt(api_data['followers'])
 
     # Left-half fixed chars (excluding dots string):
-    #   Repos:   '. '(2) + 'Repos'(5) + ':'(1) + dots + repo + ' {'(2) + 'Contrib'(7) + ': '(2) + contrib + '}'(1) = 20 + (n+2) + repo + contrib
+    #   Repos:   '. '(2) + 'Repos'(5) + ':'(1) + dots + repo = 8 + (n+2) + repo
     #   Commits: '. '(2) + 'Commits'(7) + ':'(1) + dots + commit = 10 + (n+2) + commit
     # Both left halves must equal pipe_pos.  dots string = ' ' + '.'*n + ' ' (len = n+2).
     pipe_pos = target // 2
-    pipe_pos = max(pipe_pos, 23 + len(repo_val) + len(contrib_val))
+    pipe_pos = max(pipe_pos, 11 + len(repo_val))
     pipe_pos = max(pipe_pos, 13 + len(commit_val))
     pipe_pos = min(pipe_pos, target - 12 - len(star_val))
     pipe_pos = min(pipe_pos, target - 16 - len(follower_val))
@@ -562,7 +600,7 @@ def build_data_tspans(config, api_data):
         n = max(1, n)
         return ' ' + '.' * n + ' '
 
-    repo_dots_n = pipe_pos - 22 - len(repo_val) - len(contrib_val)
+    repo_dots_n = pipe_pos - 10 - len(repo_val)
     commit_dots_n = pipe_pos - 12 - len(commit_val)
     # Right half: target - pipe_pos - 3(' | ')
     star_dots_n = target - pipe_pos - 11 - len(star_val)
@@ -572,14 +610,12 @@ def build_data_tspans(config, api_data):
     prefix = ts(text='. ', cls='cc', x=X, y_val=y[0])
     repos_key = ts(text='Repos', cls='key'); repos_key.tail = ':'
     repos_dots = ts(text=make_dots(repo_dots_n), cls='cc')
-    repos_val = ts(text=repo_val, cls='value'); repos_val.tail = ' {'
-    contrib_key = ts(text='Contrib', cls='key'); contrib_key.tail = ': '
-    contrib_v = ts(text=contrib_val, cls='value'); contrib_v.tail = '} | '
+    repos_val = ts(text=repo_val, cls='value'); repos_val.tail = ' | '
     stars_key = ts(text='Stars', cls='key'); stars_key.tail = ':'
     stars_dots = ts(text=make_dots(star_dots_n), cls='cc')
     stars_val = ts(text=star_val, cls='value'); stars_val.tail = '\n'
     tspans.extend([prefix, repos_key, repos_dots, repos_val,
-                   contrib_key, contrib_v, stars_key, stars_dots, stars_val])
+                   stars_key, stars_dots, stars_val])
     advance()
 
     # Commits & Followers line
@@ -612,6 +648,11 @@ def build_data_tspans(config, api_data):
     tspans.extend([prefix, loc_key, loc_dots, loc_val,
                    add_val, add_pp, del_val, del_pp])
     advance()
+
+    def plural(n, word):
+        return f"{n} {word}{'s' if n != 1 else ''}"
+
+    kv_line('OSS', f"{plural(api_data['oss_prs'], 'merged PR')} in {plural(api_data['oss_repos'], 'repo')}")
 
     return tspans
 
@@ -662,8 +703,8 @@ def main():
 
     commit_data, commit_time = perf_counter(commit_counter)
     (repo_data, star_data), repo_star_time = perf_counter(graph_repos_stars, 'both', ['OWNER'])
-    contrib_data, contrib_time = perf_counter(graph_repos_stars, 'repos', ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'])
     follower_data, follower_time = perf_counter(follower_getter, USER_NAME)
+    (oss_pr_data, oss_repo_data), oss_time = perf_counter(oss_prs, config['layout'].get('exclude_oss_repos', []))
 
     for index in range(len(total_loc)-1):
         total_loc[index] = f'{total_loc[index]:,}'
@@ -673,8 +714,9 @@ def main():
         'commits': commit_data,
         'stars': star_data,
         'repos': repo_data,
-        'contribs': contrib_data,
         'followers': follower_data,
+        'oss_prs': oss_pr_data,
+        'oss_repos': oss_repo_data,
         'loc_add': total_loc[0],
         'loc_del': total_loc[1],
         'loc_net': total_loc[2],
@@ -685,7 +727,7 @@ def main():
     update_svg('dark_mode.svg', [copy.deepcopy(t) for t in tspans])
     update_svg('light_mode.svg', tspans)
 
-    total_time = user_time + age_time + loc_time + commit_time + repo_star_time + contrib_time + follower_time
+    total_time = user_time + age_time + loc_time + commit_time + repo_star_time + follower_time + oss_time
 
     print('\nSummary:')
     print(f"Total function time: {total_time:.4f} s")
