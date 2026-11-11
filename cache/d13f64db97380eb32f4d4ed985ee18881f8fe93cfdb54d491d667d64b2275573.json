@@ -90,7 +90,7 @@
     "my_commits": 14
   },
   "778929aa2153479f9445135e766ebbd7441b0d3f3fa8295f6a9eba0d79040518": {
-    "commits": 875,
+    "commits": 876,
     "loc_add": 2649,
     "loc_del": 1617,
     "my_commits": 175
@@ -214,12 +214,6 @@
     "loc_add": 8111,
     "loc_del": 565,
     "my_commits": 35
-  },
-  "f13445ca2e75ee3e5d404eaf06e821afe197d77e31ef9b1a01f4b1e13c38e06e": {
-    "commits": 718,
-    "loc_add": 0,
-    "loc_del": 0,
-    "my_commits": 0
   },
   "f81d1fa4f332601386210e2e0c5a0796dc2659db91e1b1acb9ddf850206825e4": {
     "commits": 352,
